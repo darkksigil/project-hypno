@@ -1,0 +1,21 @@
+<h2>Users List</h2>
+
+@if (loadingUsers()) {
+  <div>Loading users...</div>
+}
+@else {
+  <ul>
+    @for (user of users(); track user.id) {
+      <li>{{ user.name }}</li>
+    }
+  </ul>
+}
+
+<h2>Backend Health</h2>
+
+@if (checkingHealth()) {
+  <div>Checking health...</div>
+}
+@else {
+  <pre>{{ healthStatus() | json }}</pre>
+} 

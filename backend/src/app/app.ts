@@ -1,35 +1,40 @@
-import express from 'express';
+// backend/src/app/app.ts
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { getDb } from '../../database/db';
 
 const app = express();
+
+// Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: 'http://localhost:4200' }));
 
-app.post('/users', async (req, res) => {
+// GET /users
+app.get('/users', async (_req: Request, res: Response) => {
   try {
-    const { name } = req.body;
-    if (!name) {
-      return res.status(400).json({ error: 'Name is required' });
-    }
-
-    const db = await getDb();
-    const result = await db.run(
-      'INSERT INTO users (name) VALUES (?)',
-      name
-    );
-
-    res.status(201).json({ id: result.lastID });
+    const db = getDb();
+    const users = await db.all('SELECT * FROM users');
+    res.json(users);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching users:', err);
+    res.status(500).json({ status: 'error', error: err instanceof Error ? err.message : String(err) });
   }
 });
 
-app.get('/users', async (_req, res) => {
-  const db = await getDb();
-  const users = await db.all('SELECT * FROM users');
-  res.json(users);
+// GET /health
+app.get('/health', async (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    await db.get('SELECT 1');
+    res.json({ status: 'ok', db: 'connected' });
+  } catch (err) {
+    res.status(500).json({ status: 'error', db: 'failed', error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// Catch-all
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ status: 'error', message: 'Endpoint not found' });
 });
 
 export default app;
