@@ -58,7 +58,6 @@ async function initDb(): Promise<void> {
 }
 
 function getDb(): Database {
-  console.log('getDb called, dbInstance:', dbInstance ? 'exists' : 'UNDEFINED');
   if (!dbInstance) throw new Error('Database not initialized. Call initDb() first.');
   return dbInstance;
 }

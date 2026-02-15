@@ -1,5 +1,6 @@
 import { parse } from 'csv-parse/sync';
-const { getDb } = require('../../database/db');
+const db_module = require('../../database/db');
+const getDb = db_module.getDb ?? db_module.default?.getDb;
 
 // ─── Types ────────────────────────────────────────────────────
 

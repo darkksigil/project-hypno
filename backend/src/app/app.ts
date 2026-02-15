@@ -16,12 +16,9 @@ const allowedOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:4200';
 app.use(cors({ origin: allowedOrigin }));
 
 // ─── Routes ──────────────────────────────────────────────────
-console.log('csvRoutes type:', typeof csvRoutes);
-console.log('csvRoutes value:', csvRoutes);
 app.use('/csv',       csvRoutes);
 app.use('/dtr',       dtrRoutes);
 app.use('/employees', employeeRoutes);
-console.log('✅ Routes mounted');
 
 // ─── Health check ─────────────────────────────────────────────
 app.get('/health', async (_req: Request, res: Response) => {

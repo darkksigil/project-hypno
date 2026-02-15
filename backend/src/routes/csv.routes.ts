@@ -2,8 +2,6 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 const { processCsv } = require('../services/csv.service');
 
-console.log('✅ csv.routes.ts loaded');
-
 const router = Router();
 
 // ─── Multer config ────────────────────────────────────────────

@@ -1,7 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getDb } from '../../database/db';
-
-console.log('✅ dtr.routes.ts loaded');
+const { getDb } = require('../../database/db');
 
 const router = Router();
 
