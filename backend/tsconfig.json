@@ -5,7 +5,13 @@
     "moduleResolution": "Node",
     "esModuleInterop": true,
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "outDir": "./dist",
+    "rootDir": "."
   },
-  "include": ["server.ts", "src/**/*", "database/**/*"]
+  "include": [
+    "server.ts",
+    "src/**/*",
+    "database/**/*"
+  ]
 }
