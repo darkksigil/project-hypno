@@ -22,15 +22,23 @@ async function initDb(): Promise<void> {
 
   dbInstance = await open({ filename: dbPath, driver: sqlite3.Database });
 
-  // Enable foreign keys
   await dbInstance.run('PRAGMA foreign_keys = ON');
 
   // ─── Schema ───────────────────────────────────────────────
 
   await dbInstance.run(`
+    CREATE TABLE IF NOT EXISTS departments (
+      id   INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT    NOT NULL UNIQUE
+    )
+  `);
+
+  await dbInstance.run(`
     CREATE TABLE IF NOT EXISTS employees (
-      id   TEXT PRIMARY KEY,
-      name TEXT NOT NULL
+      id            TEXT    PRIMARY KEY,
+      name          TEXT    NOT NULL,
+      department_id INTEGER REFERENCES departments(id),
+      employee_type TEXT    NOT NULL DEFAULT 'permanent'
     )
   `);
 
@@ -53,6 +61,20 @@ async function initDb(): Promise<void> {
       total_hours REAL
     )
   `);
+
+  // ─── Migrations (safe — only adds columns if missing) ─────
+  const empCols: { name: string }[] = await dbInstance.all(`PRAGMA table_info(employees)`);
+  const empColNames = empCols.map((c: { name: string }) => c.name);
+
+  if (!empColNames.includes('department_id')) {
+    await dbInstance.run(`ALTER TABLE employees ADD COLUMN department_id INTEGER REFERENCES departments(id)`);
+    console.log('✅ Migration: added department_id to employees');
+  }
+
+  if (!empColNames.includes('employee_type')) {
+    await dbInstance.run(`ALTER TABLE employees ADD COLUMN employee_type TEXT NOT NULL DEFAULT 'permanent'`);
+    console.log('✅ Migration: added employee_type to employees');
+  }
 
   console.log('✅ Database initialized at', dbPath);
 }
