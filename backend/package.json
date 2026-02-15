@@ -2,26 +2,27 @@
   "name": "project-hypno-backend",
   "version": "1.0.0",
   "description": "Backend for Project Hypno",
-  "type": "commonjs",
-  "main": "server.ts",
+  "main": "dist/server.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only server.ts"
+    "dev": "ts-node-dev --respawn --transpile-only server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
+    "csv-parse": "^5.6.0",
     "express": "^4.22.1",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
     "sqlite": "^4.1.1",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "nodemon": "^3.1.11",
-    "ts-node": "^10.9.2",
+    "@types/express": "^4.17.21",
+    "@types/morgan": "^1.9.9",
+    "@types/multer": "^1.4.12",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  }
 }

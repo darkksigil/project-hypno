@@ -1,14 +1,14 @@
-const sqlite3 = require('sqlite3');
-const { open } = require('sqlite');
-const path = require('path');
-const fs = require('fs');
+import sqlite3 from 'sqlite3';
+import { open, Database } from 'sqlite';
+import path from 'path';
+import fs from 'fs';
 
-/** @type {import('sqlite').Database<sqlite3.Database, sqlite3.Statement>} */
-let dbInstance;
+let dbInstance: Database;
 
-const dbPath = path.resolve(__dirname, 'mydb.sqlite');
+const dbPath = path.resolve(process.cwd(), 'database', 'mydb.sqlite');
 
 async function initDb(): Promise<void> {
+  // Corruption check
   if (fs.existsSync(dbPath)) {
     try {
       const tempDb = await open({ filename: dbPath, driver: sqlite3.Database });
@@ -22,22 +22,43 @@ async function initDb(): Promise<void> {
 
   dbInstance = await open({ filename: dbPath, driver: sqlite3.Database });
 
+  // Enable foreign keys
+  await dbInstance.run('PRAGMA foreign_keys = ON');
+
+  // ─── Schema ───────────────────────────────────────────────
+
   await dbInstance.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+    CREATE TABLE IF NOT EXISTS employees (
+      id   TEXT PRIMARY KEY,
       name TEXT NOT NULL
     )
   `);
 
-  const count = await dbInstance.get('SELECT COUNT(*) as cnt FROM users');
-  if (!count?.cnt) {
-    await dbInstance.run(`INSERT INTO users (name) VALUES ('Alice'), ('John')`);
-  }
+  await dbInstance.run(`
+    CREATE TABLE IF NOT EXISTS punch_logs (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id TEXT    NOT NULL REFERENCES employees(id),
+      punched_at  TEXT    NOT NULL,
+      used        INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+
+  await dbInstance.run(`
+    CREATE TABLE IF NOT EXISTS dtr_records (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id TEXT    NOT NULL REFERENCES employees(id),
+      date        TEXT    NOT NULL,
+      time_in     TEXT,
+      time_out    TEXT,
+      total_hours REAL
+    )
+  `);
 
   console.log('✅ Database initialized at', dbPath);
 }
 
-function getDb() {
+function getDb(): Database {
+  console.log('getDb called, dbInstance:', dbInstance ? 'exists' : 'UNDEFINED');
   if (!dbInstance) throw new Error('Database not initialized. Call initDb() first.');
   return dbInstance;
 }
