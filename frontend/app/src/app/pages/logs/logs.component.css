@@ -1,0 +1,77 @@
+/* src/app/pages/logs/logs.component.css */
+.page { animation: fadeIn 0.25s ease; }
+
+.page-header { margin-bottom: 1.5rem; }
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f1923;
+  margin: 0 0 0.2rem;
+}
+
+.page-sub { font-size: 0.82rem; color: #6b7f8f; margin: 0; }
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e0e8f0;
+  border-radius: 8px;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+
+thead tr { background: #f5f8fa; border-bottom: 2px solid #e0e8f0; }
+
+thead th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #6b7f8f;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+tbody tr { border-bottom: 1px solid #eef2f6; transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #f8fbfd; }
+tbody td { padding: 0.75rem 1rem; color: #1a2d40; vertical-align: middle; }
+
+.row-num { color: #8aa4b8; font-size: 0.8rem; width: 50px; }
+
+.emp-name { font-weight: 600; color: #0f1923; }
+.emp-id { font-size: 0.75rem; color: #8aa4b8; margin-top: 0.1rem; }
+
+.dept { color: #6b7f8f; font-size: 0.85rem; }
+
+.punch-time {
+  font-family: 'Courier New', monospace;
+  font-size: 0.83rem;
+  color: #2d6a9f;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2em 0.6em;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.badge-ok { background: #e8f7ee; color: #1a6b3c; }
+.badge-pending { background: #fff3e0; color: #e65100; }
+
+.loading, .empty {
+  text-align: center;
+  padding: 3rem;
+  color: #8aa4b8;
+  font-size: 0.9rem;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

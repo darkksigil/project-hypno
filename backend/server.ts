@@ -1,6 +1,8 @@
 // backend/server.ts
 import app from './src/app/app';
 const { initDb } = require('./database/db');
+import dotenv from 'dotenv';
+dotenv.config();
 
 const PORT = process.env.PORT ?? 3000;
 

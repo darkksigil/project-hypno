@@ -1,0 +1,52 @@
+<!-- src/app/pages/login/login.component.html -->
+<div class="login-wrap">
+  <div class="login-card">
+
+    <div class="login-brand">
+      <div class="brand-logo">⏱</div>
+      <h1 class="brand-title">IMISS</h1>
+      <p class="brand-sub">Integrated Management Information System</p>
+    </div>
+
+    <div class="login-form">
+      <div class="field">
+        <label>Username</label>
+        <input
+          type="text"
+          placeholder="Enter username"
+          [value]="username()"
+          (input)="onUsernameChange($event)"
+          (keydown)="onKeyDown($event)"
+          autocomplete="username"
+        />
+      </div>
+
+      <div class="field">
+        <label>Password</label>
+        <div class="pass-wrap">
+          <input
+            [type]="showPass() ? 'text' : 'password'"
+            placeholder="Enter password"
+            [value]="password()"
+            (input)="onPasswordChange($event)"
+            (keydown)="onKeyDown($event)"
+            autocomplete="current-password"
+          />
+          <button class="toggle-pass" (click)="togglePass()" type="button">
+            {{ showPass() ? '🙈' : '👁' }}
+          </button>
+        </div>
+      </div>
+
+      @if (error()) {
+        <div class="error-msg">{{ error() }}</div>
+      }
+
+      <button class="btn-login" (click)="login()" [disabled]="loading()">
+        {{ loading() ? 'Signing in...' : 'Sign In' }}
+      </button>
+    </div>
+
+    <p class="login-footer">VMMC · DTR System · 2026</p>
+  </div>
+</div>

@@ -2,8 +2,12 @@
 <nav class="navbar">
   <div class="navbar-brand">
     <span class="brand-icon">⏱</span>
-    <span class="brand-name">VMMC DTR</span>
+    <div>
+      <span class="brand-name">IMISS</span>
+      <span class="brand-sub">VMMC DTR</span>
+    </div>
   </div>
+
   <ul class="navbar-links">
     <li>
       <a routerLink="/dtr" routerLinkActive="active">
@@ -20,5 +24,16 @@
         <span class="nav-icon">📤</span> Upload CSV
       </a>
     </li>
+    <li>
+      <a routerLink="/logs" routerLinkActive="active">
+        <span class="nav-icon">🗂</span> Raw Logs
+      </a>
+    </li>
   </ul>
+
+  <div class="navbar-footer">
+    <button class="logout-btn" (click)="logout()">
+      <span>⏻</span> Sign Out
+    </button>
+  </div>
 </nav>

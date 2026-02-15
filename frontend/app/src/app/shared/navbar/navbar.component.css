@@ -5,7 +5,6 @@
   background: #0f1923;
   display: flex;
   flex-direction: column;
-  padding: 0;
   position: fixed;
   left: 0;
   top: 0;
@@ -18,27 +17,35 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 1.5rem 1.4rem 1.2rem;
+  padding: 1.4rem 1.4rem 1.1rem;
   border-bottom: 1px solid #1e2d3d;
   margin-bottom: 0.5rem;
 }
 
-.brand-icon {
-  font-size: 1.4rem;
-}
+.brand-icon { font-size: 1.4rem; }
 
 .brand-name {
+  display: block;
   font-family: 'Courier New', monospace;
   font-size: 1rem;
   font-weight: 700;
   color: #e8f4f8;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+}
+
+.brand-sub {
+  display: block;
+  font-size: 0.68rem;
+  color: #4a6070;
+  letter-spacing: 0.04em;
 }
 
 .navbar-links {
   list-style: none;
   padding: 0.5rem 0;
   margin: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
@@ -69,7 +76,30 @@
   border-left-color: #5bc4f5;
 }
 
-.nav-icon {
-  font-size: 1rem;
-  opacity: 0.85;
+.nav-icon { font-size: 1rem; opacity: 0.85; }
+
+.navbar-footer {
+  padding: 1rem 1.2rem;
+  border-top: 1px solid #1e2d3d;
+}
+
+.logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  background: transparent;
+  border: 1px solid #1e2d3d;
+  border-radius: 6px;
+  color: #4a6070;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.logout-btn:hover {
+  background: #1a2a3a;
+  color: #e8f4f8;
+  border-color: #2d6a9f;
 }
