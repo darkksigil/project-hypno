@@ -36,8 +36,6 @@ function diffMinutes(a: string, b: string): number {
 
 export async function processCsv(fileBuffer: Buffer): Promise<ParseResult> {
   const db = getDb();
-  console.log('db instance:', db); // add this
-  console.log('tables:', await db.all("SELECT name FROM sqlite_master WHERE type='table'"));
 
   // 1. Parse CSV buffer into rows
   const rows: RawPunch[] = parse(fileBuffer, {
@@ -110,5 +108,3 @@ export async function processCsv(fileBuffer: Buffer): Promise<ParseResult> {
     employees: uniqueEmployees.size,
   };
 }
-
-module.exports = { processCsv };

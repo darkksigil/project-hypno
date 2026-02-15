@@ -1,0 +1,95 @@
+/* src/app/pages/employees/employees.component.css */
+.page { animation: fadeIn 0.25s ease; }
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f1923;
+  margin: 0 0 0.2rem;
+}
+
+.page-sub {
+  font-size: 0.82rem;
+  color: #6b7f8f;
+  margin: 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e0e8f0;
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+thead tr {
+  background: #f5f8fa;
+  border-bottom: 2px solid #e0e8f0;
+}
+
+thead th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #6b7f8f;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+tbody tr {
+  border-bottom: 1px solid #eef2f6;
+  transition: background 0.1s;
+}
+
+tbody tr:last-child {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background: #f8fbfd;
+}
+
+tbody td {
+  padding: 0.85rem 1rem;
+  color: #1a2d40;
+}
+
+.row-num {
+  color: #8aa4b8;
+  font-size: 0.8rem;
+  width: 40px;
+}
+
+.emp-id {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: #2d6a9f;
+  width: 140px;
+}
+
+.emp-name {
+  font-weight: 600;
+  color: #0f1923;
+}
+
+.loading, .empty {
+  text-align: center;
+  padding: 3rem;
+  color: #8aa4b8;
+  font-size: 0.9rem;
+  line-height: 1.8;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

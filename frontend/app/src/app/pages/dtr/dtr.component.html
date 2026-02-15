@@ -1,0 +1,94 @@
+<!-- src/app/pages/dtr/dtr.component.html -->
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">DTR Records</h1>
+      <p class="page-sub">Daily Time Record — {{ filtered().length }} entries</p>
+    </div>
+    <button class="btn btn-primary" (click)="computeDtr()" [disabled]="computing()">
+      {{ computing() ? 'Computing...' : '⚡ Compute DTR' }}
+    </button>
+  </div>
+
+  @if (computeMsg()) {
+    <div class="alert">{{ computeMsg() }}</div>
+  }
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="filter-group">
+      <label>Employee</label>
+      <select (change)="onEmployeeChange($event)">
+        <option value="">All Employees</option>
+        @for (emp of employees(); track emp.id) {
+          <option [value]="emp.id">{{ emp.name }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>From</label>
+      <input type="date" (change)="onFromDateChange($event)" />
+    </div>
+    <div class="filter-group">
+      <label>To</label>
+      <input type="date" (change)="onToDateChange($event)" />
+    </div>
+    <button class="btn btn-ghost" (click)="clearFilters()">Clear</button>
+  </div>
+
+  <!-- Table -->
+  @if (loading()) {
+    <div class="loading">Loading records...</div>
+  } @else if (filtered().length === 0) {
+    <div class="empty">No DTR records found.</div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Date</th>
+            <th>Time In</th>
+            <th>Time Out</th>
+            <th>Hours</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of filtered(); track r.id) {
+            <tr>
+              <td>
+                <div class="emp-name">{{ r.name }}</div>
+                <div class="emp-id">ID: {{ r.employee_id }}</div>
+              </td>
+              <td>{{ formatDate(r.date) }}</td>
+              <td class="time">{{ formatTime(r.time_in) }}</td>
+              <td class="time">{{ formatTime(r.time_out) }}</td>
+              <td class="hours">
+                @if (r.total_hours !== null) {
+                  {{ r.total_hours | number:'1.2-2' }}h
+                } @else {
+                  <span class="missing">—</span>
+                }
+              </td>
+              <td>
+                @if (r.time_out === null) {
+                  <span class="badge badge-warn">Missing OUT</span>
+                } @else {
+                  <span class="badge badge-ok">Complete</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4" class="total-label">Total Hours</td>
+            <td class="total-val">{{ totalHours() | number:'1.2-2' }}h</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  }
+</div>

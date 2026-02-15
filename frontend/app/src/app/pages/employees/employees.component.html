@@ -1,0 +1,39 @@
+<!-- src/app/pages/employees/employees.component.html -->
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Employees</h1>
+      <p class="page-sub">{{ employees().length }} registered employees</p>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="loading">Loading employees...</div>
+  } @else if (employees().length === 0) {
+    <div class="empty">
+      <p>No employees found.</p>
+      <p>Upload a CSV to register employees automatically.</p>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Employee ID</th>
+            <th>Name</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (emp of employees(); track emp.id; let i = $index) {
+            <tr>
+              <td class="row-num">{{ i + 1 }}</td>
+              <td class="emp-id">{{ emp.id }}</td>
+              <td class="emp-name">{{ emp.name }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

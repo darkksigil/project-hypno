@@ -1,0 +1,75 @@
+/* src/app/shared/navbar/navbar.component.css */
+.navbar {
+  width: 220px;
+  min-height: 100vh;
+  background: #0f1923;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+  border-right: 1px solid #1e2d3d;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.5rem 1.4rem 1.2rem;
+  border-bottom: 1px solid #1e2d3d;
+  margin-bottom: 0.5rem;
+}
+
+.brand-icon {
+  font-size: 1.4rem;
+}
+
+.brand-name {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #e8f4f8;
+  letter-spacing: 0.05em;
+}
+
+.navbar-links {
+  list-style: none;
+  padding: 0.5rem 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.navbar-links li a {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1.4rem;
+  color: #8aa4b8;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  border-left: 3px solid transparent;
+}
+
+.navbar-links li a:hover {
+  color: #e8f4f8;
+  background: #1a2a3a;
+  border-left-color: #2d6a9f;
+}
+
+.navbar-links li a.active {
+  color: #5bc4f5;
+  background: #1a2a3a;
+  border-left-color: #5bc4f5;
+}
+
+.nav-icon {
+  font-size: 1rem;
+  opacity: 0.85;
+}
