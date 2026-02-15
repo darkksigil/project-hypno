@@ -5,9 +5,16 @@
 }
 
 .main-content {
+  alignment-baseline: center;
   margin-left: 220px;
   flex: 1;
   padding: 2rem 2.5rem;
   background: #f0f4f8;
   min-height: 100vh;
+}
+
+.dropzone{
+  border: solid black;
+  border-radius: 10px;
+  text-align: center;
 }

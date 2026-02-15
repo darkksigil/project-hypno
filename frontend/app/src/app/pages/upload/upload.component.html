@@ -1,24 +1,110 @@
-<!-- src/app/shared/navbar/navbar.component.html -->
-<nav class="navbar">
-  <div class="navbar-brand">
-    <span class="brand-icon">⏱</span>
-    <span class="brand-name">VMMC DTR</span>
+<!-- src/app/pages/upload/upload.component.html -->
+<div class="page">
+  <div class="page-header">
+    <h1 class="page-title">Upload CSV</h1>
+    <p class="page-sub">Import punch log data from your biometric device export</p>
   </div>
-  <ul class="navbar-links">
-    <li>
-      <a routerLink="/dtr" routerLinkActive="active">
-        <span class="nav-icon">📋</span> DTR Records
-      </a>
-    </li>
-    <li>
-      <a routerLink="/employees" routerLinkActive="active">
-        <span class="nav-icon">👥</span> Employees
-      </a>
-    </li>
-    <li>
-      <a routerLink="/upload" routerLinkActive="active">
-        <span class="nav-icon">📤</span> Upload CSV
-      </a>
-    </li>
-  </ul>
-</nav>
+
+  <!-- Drop zone -->
+  <div
+    class="dropzone"
+    [class.dragover]="dragOver()"
+    [class.has-file]="selectedFile()"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave()"
+    (drop)="onDrop($event)"
+  >
+    @if (selectedFile()) {
+      <div class="file-selected">
+        <span class="file-icon">📄</span>
+        <div class="file-info">
+          <div class="file-name">{{ selectedFile()!.name }}</div>
+          <div class="file-size">{{ (selectedFile()!.size / 1024).toFixed(1) }} KB</div>
+        </div>
+        <button class="remove-btn" (click)="clearFile()">✕</button>
+      </div>
+    } @else {
+      <div class="drop-prompt">
+        <span class="drop-icon">📤</span>
+        <p>Drag & drop your CSV file here</p>
+        <label class="browse-btn">
+          <input type="file" accept=".csv" (change)="onFileSelected($event)" hidden />
+        </label>
+      </div>
+    }
+  </div>
+
+  <!-- Upload button -->
+  @if (selectedFile()) {
+    <button
+      class="btn btn-primary"
+      (click)="upload()"
+      [disabled]="uploading()"
+    >
+      {{ uploading() ? 'Uploading...' : '⬆ Upload CSV' }}
+    </button>
+  }
+
+  <!-- Upload result -->
+  @if (uploadResult()) {
+    <div class="result-card" [class.error]="uploadResult()!.status === 'error'">
+      <div class="result-title">
+        {{ uploadResult()!.status === 'ok' ? '✅ Upload Successful' : '❌ Upload Failed' }}
+      </div>
+      <div class="result-msg">{{ uploadResult()!.message }}</div>
+      @if (uploadResult()!.status === 'ok') {
+        <div class="result-stats">
+          <div class="stat">
+            <span class="stat-val">{{ uploadResult()!.inserted }}</span>
+            <span class="stat-lbl">Inserted</span>
+          </div>
+          <div class="stat">
+            <span class="stat-val">{{ uploadResult()!.skipped }}</span>
+            <span class="stat-lbl">Skipped</span>
+          </div>
+          <div class="stat">
+            <span class="stat-val">{{ uploadResult()!.employees }}</span>
+            <span class="stat-lbl">Employees</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Divider -->
+  <div class="divider">
+    <span>Then compute DTR</span>
+  </div>
+
+  <!-- Compute section -->
+  <div class="compute-section">
+    <div class="compute-info">
+      <h2>Compute DTR</h2>
+      <p>Process uploaded punch logs into IN/OUT DTR records. Run this after every CSV upload.</p>
+    </div>
+    <button
+      class="btn btn-compute"
+      (click)="computeDtr()"
+      [disabled]="computing()"
+    >
+      {{ computing() ? 'Computing...' : '⚡ Compute DTR' }}
+    </button>
+  </div>
+
+  @if (computeResult()) {
+    <div class="result-card" [class.error]="computeResult()!.status === 'error'">
+      <div class="result-title">
+        {{ computeResult()!.status === 'ok' ? '✅ Done' : '❌ Error' }}
+      </div>
+      <div class="result-msg">{{ computeResult()!.message }}</div>
+      @if (computeResult()!.records > 0) {
+        <div class="result-stats">
+          <div class="stat">
+            <span class="stat-val">{{ computeResult()!.records }}</span>
+            <span class="stat-lbl">Records Created</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
