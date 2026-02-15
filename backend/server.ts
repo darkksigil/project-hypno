@@ -1,8 +1,8 @@
 // backend/server.ts
 import app from './src/app/app';
-import { initDb } from './database/db';
+const { initDb } = require('./database/db');
 
-const PORT = 3000;
+const PORT = process.env.PORT ?? 3000;
 
 async function startServer() {
   try {
