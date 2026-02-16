@@ -8,7 +8,6 @@ let dbInstance: Database;
 const dbPath = path.resolve(process.cwd(), 'database', 'mydb.sqlite');
 
 async function initDb(): Promise<void> {
-  // Corruption check
   if (fs.existsSync(dbPath)) {
     try {
       const tempDb = await open({ filename: dbPath, driver: sqlite3.Database });
@@ -21,7 +20,6 @@ async function initDb(): Promise<void> {
   }
 
   dbInstance = await open({ filename: dbPath, driver: sqlite3.Database });
-
   await dbInstance.run('PRAGMA foreign_keys = ON');
 
   // ─── Schema ───────────────────────────────────────────────
@@ -47,7 +45,8 @@ async function initDb(): Promise<void> {
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       employee_id TEXT    NOT NULL REFERENCES employees(id),
       punched_at  TEXT    NOT NULL,
-      used        INTEGER NOT NULL DEFAULT 0
+      used        INTEGER NOT NULL DEFAULT 0,
+      filtered    INTEGER NOT NULL DEFAULT 0
     )
   `);
 
@@ -56,13 +55,15 @@ async function initDb(): Promise<void> {
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       employee_id TEXT    NOT NULL REFERENCES employees(id),
       date        TEXT    NOT NULL,
-      time_in     TEXT,
-      time_out    TEXT,
-      total_hours REAL
+      am_in       TEXT,
+      am_out      TEXT,
+      pm_in       TEXT,
+      pm_out      TEXT
     )
   `);
 
-  // ─── Migrations (safe — only adds columns if missing) ─────
+  // ─── Migrations ──────────────────────────────────────────
+
   const empCols: { name: string }[] = await dbInstance.all(`PRAGMA table_info(employees)`);
   const empColNames = empCols.map((c: { name: string }) => c.name);
 
@@ -70,10 +71,16 @@ async function initDb(): Promise<void> {
     await dbInstance.run(`ALTER TABLE employees ADD COLUMN department_id INTEGER REFERENCES departments(id)`);
     console.log('✅ Migration: added department_id to employees');
   }
-
   if (!empColNames.includes('employee_type')) {
     await dbInstance.run(`ALTER TABLE employees ADD COLUMN employee_type TEXT NOT NULL DEFAULT 'permanent'`);
     console.log('✅ Migration: added employee_type to employees');
+  }
+
+  const punchCols: { name: string }[] = await dbInstance.all(`PRAGMA table_info(punch_logs)`);
+  const punchColNames = punchCols.map((c: { name: string }) => c.name);
+  if (!punchColNames.includes('filtered')) {
+    await dbInstance.run(`ALTER TABLE punch_logs ADD COLUMN filtered INTEGER NOT NULL DEFAULT 0`);
+    console.log('✅ Migration: added filtered to punch_logs');
   }
 
   console.log('✅ Database initialized at', dbPath);

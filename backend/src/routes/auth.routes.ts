@@ -5,6 +5,10 @@ const router = Router();
 // ─── POST /auth/login ─────────────────────────────────────────
 router.post('/login', (req: Request, res: Response) => {
   const { username, password } = req.body;
+  console.log('ENV USER:', process.env.ADMIN_USER);
+  console.log('ENV PASS:', process.env.ADMIN_PASS);
+  console.log('GOT:', username, password);
+  // ... rest of code
 
   const validUser = process.env.ADMIN_USER;
   const validPass = process.env.ADMIN_PASS;

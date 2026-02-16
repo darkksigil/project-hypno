@@ -1,25 +1,44 @@
 import { Component, OnInit, signal, computed, inject } from '@angular/core';
-import { CommonModule, DecimalPipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DtrService, DtrRecord } from '../../core/services/dtr.service';
-import { EmployeeService, Employee } from '../../core/services/employee.service';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
+
+export interface DtrRecord {
+  id:            number;
+  employee_id:   string;
+  name:          string;
+  employee_type: string;
+  department:    string | null;
+  date:          string;
+  am_in:         string | null;
+  am_out:        string | null;
+  pm_in:         string | null;
+  pm_out:        string | null;
+}
+
+export interface Employee {
+  id:   string;
+  name: string;
+}
 
 @Component({
   selector: 'app-dtr',
   standalone: true,
-  imports: [CommonModule, FormsModule, DecimalPipe],
+  imports: [CommonModule, FormsModule],
   templateUrl: './dtr.component.html',
   styleUrl: './dtr.component.css'
 })
 export class DtrComponent implements OnInit {
-  private dtrService      = inject(DtrService);
-  private employeeService = inject(EmployeeService);
+  private http = inject(HttpClient);
+  private base = environment.apiUrl;
 
-  records    = signal<DtrRecord[]>([]);
-  employees  = signal<Employee[]>([]);
-  loading    = signal(true);
-  computing  = signal(false);
+  records   = signal<DtrRecord[]>([]);
+  employees = signal<Employee[]>([]);
+  loading   = signal(true);
+  computing = signal(false);
   computeMsg = signal('');
+  computeError = signal(false);
 
   selectedEmployee = signal('');
   fromDate         = signal('');
@@ -33,30 +52,52 @@ export class DtrComponent implements OnInit {
     return data;
   });
 
-  totalHours = computed(() =>
-    this.filtered().reduce((sum: number, r: DtrRecord) => sum + (r.total_hours ?? 0), 0)
-  );
+  sortAsc = signal(false);
+
+  sorted = computed(() => {
+    const data = [...this.filtered()];
+    return data.sort((a, b) => {
+      const dateCompare = this.sortAsc()
+        ? a.date.localeCompare(b.date)
+         : b.date.localeCompare(a.date);
+      if (dateCompare !== 0) return dateCompare;
+      return a.name.localeCompare(b.name); // same date → sort by name
+    });
+  });
 
   ngOnInit(): void { this.loadData(); }
 
   loadData(): void {
     this.loading.set(true);
-    this.dtrService.getAll().subscribe((records: DtrRecord[]) => {
-      this.records.set(records);
-      this.loading.set(false);
-    });
-    this.employeeService.getAll().subscribe((employees: Employee[]) => {
-      this.employees.set(employees);
+    this.http.get<DtrRecord[]>(`${this.base}/dtr`).subscribe({
+      next: (records: DtrRecord[]) => {
+        this.records.set(records);
+        this.loading.set(false);
+        // Build unique employee list from records
+        const empMap = new Map<string, string>();
+        records.forEach(r => empMap.set(r.employee_id, r.name));
+        this.employees.set(Array.from(empMap.entries()).map(([id, name]) => ({ id, name })));
+      },
+      error: () => this.loading.set(false)
     });
   }
 
   computeDtr(): void {
     this.computing.set(true);
     this.computeMsg.set('');
-    this.dtrService.compute().subscribe((result: { status: string; message: string; records: number }) => {
-      this.computeMsg.set(result.message);
-      this.computing.set(false);
-      if (result.records > 0) this.loadData();
+    this.computeError.set(false);
+    this.http.post<{ status: string; message: string; records: number }>(`${this.base}/dtr/compute`, {}).subscribe({
+      next: (result) => {
+        this.computeMsg.set(result.message);
+        this.computeError.set(result.status !== 'ok');
+        this.computing.set(false);
+        if (result.records > 0) this.loadData();
+      },
+      error: () => {
+        this.computeMsg.set('Compute failed. Check backend.');
+        this.computeError.set(true);
+        this.computing.set(false);
+      }
     });
   }
 
@@ -66,15 +107,23 @@ export class DtrComponent implements OnInit {
     this.toDate.set('');
   }
 
+  toggleSort(): void {
+  this.sortAsc.set(!this.sortAsc());
+  }
+
   formatTime(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) return '';
     return new Date(iso).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true });
   }
 
   formatDate(dateStr: string): string {
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-PH', {
-      year: 'numeric', month: 'short', day: 'numeric', weekday: 'short'
+      weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
     });
+  }
+
+  isIncomplete(r: DtrRecord): boolean {
+    return !r.am_in && !r.pm_in;
   }
 
   onEmployeeChange(e: Event): void { this.selectedEmployee.set((e.target as HTMLSelectElement).value); }

@@ -11,64 +11,126 @@ interface PunchLog {
   punched_at:  string;
 }
 
-interface DtrPair {
-  date:        string;
-  time_in:     string | null;
-  time_out:    string | null;
-  total_hours: number | null;
+interface DtrRecord {
+  date:   string;
+  am_in:  string | null;
+  am_out: string | null;
+  pm_in:  string | null;
+  pm_out: string | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────
-const MAX_SHIFT_HOURS = 18; // 16h max shift + 2h grace
+const DEDUP_MINUTES = 5;
+const MAX_SHIFT_MS  = 18 * 60 * 60 * 1000; // 18h grace for night shift
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-function computeHours(timeIn: string, timeOut: string): number {
-  const diff = new Date(timeOut).getTime() - new Date(timeIn).getTime();
-  return Math.round((diff / 3600000) * 100) / 100;
+function toMs(iso: string): number {
+  return new Date(iso).getTime();
 }
 
-function diffHours(a: string, b: string): number {
-  return (new Date(b).getTime() - new Date(a).getTime()) / 3600000;
+function diffMinutes(a: string, b: string): number {
+  return Math.abs(toMs(a) - toMs(b)) / 60000;
 }
 
-// Pair punches with 18h cap:
-// - Alternating IN/OUT
-// - Gap > 18h after IN → missing OUT, next punch = new IN
-// - Date stored = date the shift STARTED (handles overnight)
-function pairPunches(punches: PunchLog[]): DtrPair[] {
-  const pairs: DtrPair[] = [];
-  let i = 0;
+// Dedup: remove punches within DEDUP_MINUTES of previous punch
+function dedupPunches(punches: PunchLog[]): { kept: PunchLog[]; filtered: PunchLog[] } {
+  const kept: PunchLog[]     = [];
+  const filtered: PunchLog[] = [];
+  let lastTime = -Infinity;
 
-  while (i < punches.length) {
-    const inPunch  = punches[i];
-    const outPunch = punches[i + 1] ?? null;
-    const timeIn   = inPunch.punched_at;
-    const date     = timeIn.split('T')[0];
-
-    if (outPunch) {
-      const gap = diffHours(timeIn, outPunch.punched_at);
-      if (gap <= MAX_SHIFT_HOURS) {
-        pairs.push({
-          date,
-          time_in:     timeIn,
-          time_out:    outPunch.punched_at,
-          total_hours: computeHours(timeIn, outPunch.punched_at),
-        });
-        i += 2;
-      } else {
-        // Gap too large — forgotten OUT
-        pairs.push({ date, time_in: timeIn, time_out: null, total_hours: null });
-        i += 1;
-      }
+  for (const p of punches) {
+    const t    = toMs(p.punched_at);
+    const diff = (t - lastTime) / 60000;
+    if (diff >= DEDUP_MINUTES) {
+      kept.push(p);
+      lastTime = t;
     } else {
-      // Last punch — no OUT
-      pairs.push({ date, time_in: timeIn, time_out: null, total_hours: null });
-      i += 1;
+      filtered.push(p);
     }
   }
+  return { kept, filtered };
+}
 
-  return pairs;
+// Assign punches to DTR columns based on count:
+// 1 punch  → am_in only
+// 2 punches → am_in + pm_out
+// 3 punches → am_in + pm_out (middle ignored)
+// 4 punches → am_in + am_out + pm_in + pm_out
+// 5+ punches → am_in + am_out + pm_in + pm_out (1st, 2nd, 2nd-to-last, last)
+function assignColumns(punches: PunchLog[]): Pick<DtrRecord, 'am_in' | 'am_out' | 'pm_in' | 'pm_out'> {
+  const n = punches.length;
+  if (n === 0) return { am_in: null, am_out: null, pm_in: null, pm_out: null };
+  if (n === 1) return { am_in: punches[0].punched_at, am_out: null, pm_in: null, pm_out: null };
+  if (n === 2) return { am_in: punches[0].punched_at, am_out: null, pm_in: null, pm_out: punches[1].punched_at };
+  if (n === 3) return { am_in: punches[0].punched_at, am_out: null, pm_in: null, pm_out: punches[2].punched_at };
+  // 4 or more
+  return {
+    am_in:  punches[0].punched_at,
+    am_out: punches[1].punched_at,
+    pm_in:  punches[n - 2].punched_at,
+    pm_out: punches[n - 1].punched_at,
+  };
+}
+
+// Build DTR records from deduplicated punches for one employee
+// Handles overnight shifts: if only 1 punch today and next day has a punch within 18h,
+// borrow that punch as pm_out on next day's row
+function buildDtrRecords(punches: PunchLog[]): DtrRecord[] {
+  if (!punches.length) return [];
+
+  // Group by calendar date
+  const byDate = new Map<string, PunchLog[]>();
+  for (const p of punches) {
+    const date = p.punched_at.split('T')[0];
+    if (!byDate.has(date)) byDate.set(date, []);
+    byDate.get(date)!.push(p);
+  }
+
+  const dates    = Array.from(byDate.keys()).sort();
+  const records: DtrRecord[] = [];
+  const borrowedIds = new Set<number>();
+
+  for (let d = 0; d < dates.length; d++) {
+    const date       = dates[d];
+    const dayPunches = byDate.get(date)!.filter(p => !borrowedIds.has(p.id));
+
+    if (!dayPunches.length) continue;
+
+    // Night shift detection:
+    // Only 1 or 2 punches today, last punch is PM (hour >= 17),
+    // and next day has a punch within 18h → borrow as pm_out on NEXT day's row
+    const last      = dayPunches[dayPunches.length - 1];
+    const lastHour  = new Date(last.punched_at).getHours();
+    const nextDate  = dates[d + 1];
+    const nextDay   = nextDate ? byDate.get(nextDate)!.filter(p => !borrowedIds.has(p.id)) : [];
+    const nextFirst = nextDay[0] ?? null;
+
+    let nextDayRecord: DtrRecord | null = null;
+
+    const nextHour = nextFirst ? new Date(nextFirst.punched_at).getHours() : -1;
+    if (dayPunches.length === 1 && nextHour >= 4 && nextHour <= 10 && nextFirst) {
+      const gap = toMs(nextFirst.punched_at) - toMs(last.punched_at);
+      if (gap > 0 && gap <= MAX_SHIFT_MS) {
+        // Night shift — create a next-day record with only pm_out
+        borrowedIds.add(nextFirst.id);
+        nextDayRecord = {
+          date:   nextDate,
+          am_in:  null,
+          am_out: null,
+          pm_in:  null,
+          pm_out: nextFirst.punched_at,
+        };
+      }
+    }
+
+    const cols = assignColumns(dayPunches);
+    records.push({ date, ...cols });
+
+    if (nextDayRecord) records.push(nextDayRecord);
+  }
+
+  return records;
 }
 
 // ─── POST /dtr/compute ────────────────────────────────────────
@@ -76,47 +138,56 @@ router.post('/compute', async (_req: Request, res: Response) => {
   try {
     const db = getDb();
 
-    const punches: PunchLog[] = await db.all(`
+    const rawPunches: PunchLog[] = await db.all(`
       SELECT id, employee_id, punched_at
       FROM   punch_logs
-      WHERE  used = 0
+      WHERE  used = 0 AND filtered = 0
       ORDER  BY employee_id ASC, punched_at ASC
     `);
 
-    if (!punches.length) {
+    if (!rawPunches.length) {
       res.json({ status: 'ok', message: 'No new punches to process.', records: 0 });
       return;
     }
 
-    // Group by employee only — NOT by date (overnight shifts span two dates)
-    const grouped = new Map<string, PunchLog[]>();
-    for (const punch of punches) {
-      if (!grouped.has(punch.employee_id)) grouped.set(punch.employee_id, []);
-      grouped.get(punch.employee_id)!.push(punch);
+    const byEmployee = new Map<string, PunchLog[]>();
+    for (const p of rawPunches) {
+      if (!byEmployee.has(p.employee_id)) byEmployee.set(p.employee_id, []);
+      byEmployee.get(p.employee_id)!.push(p);
     }
 
-    let recordsInserted = 0;
-    const usedIds: number[] = [];
+    let recordsInserted    = 0;
+    const usedIds:     number[] = [];
+    const filteredIds: number[] = [];
 
-    for (const [employeeId, empPunches] of grouped) {
-      const pairs = pairPunches(empPunches);
+    for (const [employeeId, empPunches] of byEmployee) {
+      const { kept, filtered } = dedupPunches(empPunches);
+      filteredIds.push(...filtered.map((p: PunchLog) => p.id));
 
-      for (const pair of pairs) {
+      const dtrRecords = buildDtrRecords(kept);
+
+      for (const rec of dtrRecords) {
         await db.run(
-          `INSERT INTO dtr_records (employee_id, date, time_in, time_out, total_hours)
-           VALUES (?, ?, ?, ?, ?)`,
-          [employeeId, pair.date, pair.time_in, pair.time_out, pair.total_hours]
+          `INSERT INTO dtr_records (employee_id, date, am_in, am_out, pm_in, pm_out)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [employeeId, rec.date, rec.am_in, rec.am_out, rec.pm_in, rec.pm_out]
         );
         recordsInserted++;
       }
 
-      usedIds.push(...empPunches.map((p: PunchLog) => p.id));
+      usedIds.push(...kept.map((p: PunchLog) => p.id));
     }
 
     if (usedIds.length) {
       await db.run(
         `UPDATE punch_logs SET used = 1 WHERE id IN (${usedIds.map(() => '?').join(',')})`,
         usedIds
+      );
+    }
+    if (filteredIds.length) {
+      await db.run(
+        `UPDATE punch_logs SET filtered = 1 WHERE id IN (${filteredIds.map(() => '?').join(',')})`,
+        filteredIds
       );
     }
 
@@ -128,21 +199,25 @@ router.post('/compute', async (_req: Request, res: Response) => {
 });
 
 // ─── GET /dtr/logs ────────────────────────────────────────────
-// Raw punch logs — must be before /:employeeId route
-router.get('/logs', async (_req: Request, res: Response) => {
+router.get('/logs', async (req: Request, res: Response) => {
   try {
-    const db   = getDb();
+    const db         = getDb();
+    const { filter } = req.query;
+
+    let where = '';
+    if (filter === 'processed') where = 'WHERE p.used = 1 AND p.filtered = 0';
+    else if (filter === 'pending')  where = 'WHERE p.used = 0 AND p.filtered = 0';
+    else if (filter === 'filtered') where = 'WHERE p.filtered = 1';
+
     const logs = await db.all(`
       SELECT
-        p.id,
-        p.employee_id,
-        e.name,
-        dep.name  AS department,
-        p.punched_at,
-        p.used
+        p.id, p.employee_id, e.name,
+        dep.name AS department,
+        p.punched_at, p.used, p.filtered
       FROM   punch_logs  p
       JOIN   employees   e   ON e.id   = p.employee_id
       LEFT JOIN departments dep ON dep.id = e.department_id
+      ${where}
       ORDER  BY p.punched_at DESC
       LIMIT  1000
     `);
@@ -154,7 +229,6 @@ router.get('/logs', async (_req: Request, res: Response) => {
 });
 
 // ─── GET /dtr/export ─────────────────────────────────────────
-// Structured DTR data for PDF — must be before /:employeeId route
 router.get('/export', async (req: Request, res: Response) => {
   try {
     const db = getDb();
@@ -166,15 +240,9 @@ router.get('/export', async (req: Request, res: Response) => {
     }
 
     let query = `
-      SELECT
-        d.employee_id,
-        e.name,
-        e.employee_type,
-        dep.name  AS department,
-        d.date,
-        d.time_in,
-        d.time_out,
-        d.total_hours
+      SELECT d.employee_id, e.name, e.employee_type,
+             dep.name AS department,
+             d.date, d.am_in, d.am_out, d.pm_in, d.pm_out
       FROM   dtr_records  d
       JOIN   employees    e   ON e.id   = d.employee_id
       LEFT JOIN departments dep ON dep.id = e.department_id
@@ -182,28 +250,13 @@ router.get('/export', async (req: Request, res: Response) => {
     `;
     const params: (string | number)[] = [from as string, to as string];
 
-    if (department_id) {
-      query += ` AND e.department_id = ?`;
-      params.push(Number(department_id));
-    }
-    if (employee_type) {
-      query += ` AND e.employee_type = ?`;
-      params.push(employee_type as string);
-    }
-
+    if (department_id) { query += ` AND e.department_id = ?`; params.push(Number(department_id)); }
+    if (employee_type) { query += ` AND e.employee_type = ?`; params.push(employee_type as string); }
     query += ` ORDER BY e.name ASC, d.date ASC`;
 
     const records = await db.all(query, params);
 
-    // Group by employee
-    const byEmployee = new Map<string, {
-      employee_id:   string;
-      name:          string;
-      employee_type: string;
-      department:    string;
-      records:       typeof records;
-    }>();
-
+    const byEmployee = new Map<string, any>();
     for (const r of records) {
       if (!byEmployee.has(r.employee_id)) {
         byEmployee.set(r.employee_id, {
@@ -214,14 +267,10 @@ router.get('/export', async (req: Request, res: Response) => {
           records:       [],
         });
       }
-      byEmployee.get(r.employee_id)!.records.push(r);
+      byEmployee.get(r.employee_id).records.push(r);
     }
 
-    res.json({
-      from,
-      to,
-      employees: Array.from(byEmployee.values()),
-    });
+    res.json({ from, to, employees: Array.from(byEmployee.values()) });
   } catch (err) {
     console.error('Export error:', err);
     res.status(500).json({ status: 'error', error: err instanceof Error ? err.message : String(err) });
@@ -233,16 +282,9 @@ router.get('/', async (_req: Request, res: Response) => {
   try {
     const db      = getDb();
     const records = await db.all(`
-      SELECT
-        d.id,
-        d.employee_id,
-        e.name,
-        e.employee_type,
-        dep.name  AS department,
-        d.date,
-        d.time_in,
-        d.time_out,
-        d.total_hours
+      SELECT d.id, d.employee_id, e.name, e.employee_type,
+             dep.name AS department,
+             d.date, d.am_in, d.am_out, d.pm_in, d.pm_out
       FROM   dtr_records  d
       JOIN   employees    e   ON e.id   = d.employee_id
       LEFT JOIN departments dep ON dep.id = e.department_id
@@ -260,14 +302,7 @@ router.get('/:employeeId', async (req: Request, res: Response) => {
   try {
     const db      = getDb();
     const records = await db.all(`
-      SELECT
-        d.id,
-        d.employee_id,
-        e.name,
-        d.date,
-        d.time_in,
-        d.time_out,
-        d.total_hours
+      SELECT d.id, d.employee_id, e.name, d.date, d.am_in, d.am_out, d.pm_in, d.pm_out
       FROM   dtr_records d
       JOIN   employees   e ON e.id = d.employee_id
       WHERE  d.employee_id = ?

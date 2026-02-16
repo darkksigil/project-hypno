@@ -4,32 +4,44 @@ const getDb = db_module.getDb ?? db_module.default?.getDb;
 
 // ─── Types ────────────────────────────────────────────────────
 
-export interface RawPunch {
-  employeeId: string;
-  name:       string;
-  date:       string; // YYYY-MM-DD
-  time:       string; // HH:MM:SS
-}
-
 export interface ParseResult {
-  inserted: number;
-  skipped:  number;
+  inserted:  number;
+  skipped:   number;
   employees: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────
-
-// Punches from the same employee within this window = duplicate tap
 const DEDUP_WINDOW_MINUTES = 5;
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-function toIso(date: string, time: string): string {
-  return `${date}T${time}`;
-}
-
 function diffMinutes(a: string, b: string): number {
   return Math.abs(new Date(a).getTime() - new Date(b).getTime()) / 60000;
+}
+
+// Normalize a raw CSV row into { employeeId, name, punchedAt }
+// Format A (new): employee_id, name, timestamp  ← dummy_punches_v2.csv
+// Format B (old): employeeId,  name, date, time ← legacy device export
+function normalizeRow(row: any): { employeeId: string; name: string; punchedAt: string } | null {
+  // Format A — single timestamp column
+  if (row.timestamp) {
+    const employeeId = (row.employee_id ?? row.employeeId ?? '').trim();
+    const name       = (row.name ?? '').trim();
+    const punchedAt  = row.timestamp.trim();
+    if (!employeeId || !name || !punchedAt) return null;
+    return { employeeId, name, punchedAt };
+  }
+
+  // Format B — separate date + time columns
+  if (row.date && row.time) {
+    const employeeId = (row.employee_id ?? row.employeeId ?? '').trim();
+    const name       = (row.name ?? '').trim();
+    const punchedAt  = `${row.date.trim()}T${row.time.trim()}`;
+    if (!employeeId || !name) return null;
+    return { employeeId, name, punchedAt };
+  }
+
+  return null;
 }
 
 // ─── Main service function ────────────────────────────────────
@@ -37,19 +49,24 @@ function diffMinutes(a: string, b: string): number {
 export async function processCsv(fileBuffer: Buffer): Promise<ParseResult> {
   const db = getDb();
 
-  // 1. Parse CSV buffer into rows
-  const rows: RawPunch[] = parse(fileBuffer, {
-    columns:          true,   // use first row as keys
+  const rawRows: any[] = parse(fileBuffer, {
+    columns:          true,
     skip_empty_lines: true,
     trim:             true,
   });
 
-  if (!rows.length) throw new Error('CSV file is empty or has no valid rows.');
+  if (!rawRows.length) throw new Error('CSV file is empty or has no valid rows.');
 
-  // 2. Upsert employees — insert if not exists, update name if changed
+  // Normalize rows — filter out any that can't be parsed
+  const normalized = rawRows
+    .map(normalizeRow)
+    .filter(Boolean) as { employeeId: string; name: string; punchedAt: string }[];
+
+  if (!normalized.length) throw new Error('No valid rows found. Check CSV column names.');
+
+  // Upsert employees
   const uniqueEmployees = new Map<string, string>();
-  for (const row of rows) {
-    if (!row.employeeId || !row.name) continue;
+  for (const row of normalized) {
     uniqueEmployees.set(row.employeeId, row.name);
   }
 
@@ -62,49 +79,33 @@ export async function processCsv(fileBuffer: Buffer): Promise<ParseResult> {
     );
   }
 
-  // 3. Insert raw punches — deduplicate within DEDUP_WINDOW_MINUTES per employee
+  // Sort by employee + time for correct dedup ordering
+  const sorted = [...normalized].sort((a, b) =>
+    a.employeeId.localeCompare(b.employeeId) || a.punchedAt.localeCompare(b.punchedAt)
+  );
+
   let inserted = 0;
   let skipped  = 0;
-
-  // Track the last punch time per employee for dedup check
   const lastPunch = new Map<string, string>();
 
-  // Sort rows by employeeId + datetime so dedup works correctly
-  const sorted = [...rows].sort((a, b) => {
-    const dtA = toIso(a.date, a.time);
-    const dtB = toIso(b.date, b.time);
-    return a.employeeId.localeCompare(b.employeeId) || dtA.localeCompare(dtB);
-  });
-
   for (const row of sorted) {
-    if (!row.employeeId || !row.date || !row.time) {
-      skipped++;
-      continue;
-    }
-
-    const punchedAt = toIso(row.date, row.time);
-    const last      = lastPunch.get(row.employeeId);
+    const last = lastPunch.get(row.employeeId);
 
     // Skip if within dedup window
-    if (last && diffMinutes(last, punchedAt) < DEDUP_WINDOW_MINUTES) {
+    if (last && diffMinutes(last, row.punchedAt) < DEDUP_WINDOW_MINUTES) {
       skipped++;
       continue;
     }
 
-    // Insert raw punch — used = 0 (not yet processed into DTR)
     await db.run(
-      `INSERT INTO punch_logs (employee_id, punched_at, used)
-       VALUES (?, ?, 0)`,
-      [row.employeeId, punchedAt]
+      `INSERT INTO punch_logs (employee_id, punched_at, used, filtered)
+       VALUES (?, ?, 0, 0)`,
+      [row.employeeId, row.punchedAt]
     );
 
-    lastPunch.set(row.employeeId, punchedAt);
+    lastPunch.set(row.employeeId, row.punchedAt);
     inserted++;
   }
 
-  return {
-    inserted,
-    skipped,
-    employees: uniqueEmployees.size,
-  };
+  return { inserted, skipped, employees: uniqueEmployees.size };
 }

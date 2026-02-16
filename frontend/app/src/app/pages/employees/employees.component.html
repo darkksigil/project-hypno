@@ -1,35 +1,108 @@
 <!-- src/app/pages/employees/employees.component.html -->
 <div class="page">
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">Employees</h1>
-      <p class="page-sub">{{ employees().length }} registered employees</p>
-    </div>
+
+  <!-- ─── Departments Section ─────────────────────────── -->
+  <div class="section-header">
+    <h1 class="page-title">Employees</h1>
+    <p class="page-sub">{{ employees().length }} registered employees</p>
   </div>
 
+  <div class="dept-panel">
+    <div class="dept-panel-header">
+      <span class="dept-label">🏢 Departments</span>
+      <span class="dept-count">{{ departments().length }}</span>
+    </div>
+
+    <div class="dept-list">
+      @for (dept of departments(); track dept.id) {
+        <div class="dept-chip">
+          <span>{{ dept.name }}</span>
+          <button class="dept-delete" (click)="deleteDepartment(dept.id, dept.name)" title="Delete">×</button>
+        </div>
+      }
+      @if (departments().length === 0) {
+        <span class="dept-empty">No departments yet.</span>
+      }
+    </div>
+
+    <div class="dept-add">
+      <input
+        type="text"
+        placeholder="New department name..."
+        [value]="newDeptName()"
+        (input)="onNewDeptChange($event)"
+        (keydown)="onDeptKeyDown($event)"
+      />
+      <button class="btn-add-dept" (click)="addDepartment()" [disabled]="deptSaving() || !newDeptName().trim()">
+        {{ deptSaving() ? 'Adding...' : '+ Add' }}
+      </button>
+    </div>
+
+    @if (deptMsg()) {
+      <div class="dept-msg" [class.dept-msg-error]="deptError()">{{ deptMsg() }}</div>
+    }
+  </div>
+
+  <!-- ─── Employees Table ──────────────────────────────── -->
   @if (loading()) {
     <div class="loading">Loading employees...</div>
   } @else if (employees().length === 0) {
-    <div class="empty">
-      <p>No employees found.</p>
-      <p>Upload a CSV to register employees automatically.</p>
-    </div>
+    <div class="empty">No employees found. Upload a CSV to register employees automatically.</div>
   } @else {
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
             <th>#</th>
-            <th>Employee ID</th>
-            <th>Name</th>
+            <th>EMPLOYEE</th>
+            <th>DEPARTMENT</th>
+            <th>TYPE</th>
+            <th>ACTIONS</th>
           </tr>
         </thead>
         <tbody>
           @for (emp of employees(); track emp.id; let i = $index) {
             <tr>
               <td class="row-num">{{ i + 1 }}</td>
-              <td class="emp-id">{{ emp.id }}</td>
-              <td class="emp-name">{{ emp.name }}</td>
+              <td>
+                <div class="emp-name">{{ emp.name }}</div>
+                <div class="emp-id">ID: {{ emp.id }}</div>
+              </td>
+
+              @if (emp.editing) {
+                <td>
+                  <select class="inline-select" [value]="emp.editDeptId ?? ''" (change)="onDeptChange(emp, $event)">
+                    <option value="">— Unassigned —</option>
+                    @for (dept of departments(); track dept.id) {
+                      <option [value]="dept.id">{{ dept.name }}</option>
+                    }
+                  </select>
+                </td>
+                <td>
+                  <select class="inline-select" [value]="emp.editType" (change)="onTypeChange(emp, $event)">
+                    <option value="permanent">Permanent</option>
+                    <option value="cos">COS</option>
+                  </select>
+                </td>
+                <td class="td-actions">
+                  <button class="btn-save" (click)="saveEdit(emp)" [disabled]="emp.saving">
+                    {{ emp.saving ? 'Saving...' : '✓ Save' }}
+                  </button>
+                  <button class="btn-cancel" (click)="cancelEdit(emp)">Cancel</button>
+                </td>
+              } @else {
+                <td>
+                  <span class="dept-badge">{{ emp.department ?? '—' }}</span>
+                </td>
+                <td>
+                  <span class="type-badge" [class.type-cos]="emp.employee_type === 'cos'">
+                    {{ emp.employee_type === 'cos' ? 'COS' : 'Permanent' }}
+                  </span>
+                </td>
+                <td class="td-actions">
+                  <button class="btn-edit" (click)="startEdit(emp)">✎ Edit</button>
+                </td>
+              }
             </tr>
           }
         </tbody>
