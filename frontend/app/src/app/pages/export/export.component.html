@@ -1,0 +1,128 @@
+<!-- src/app/pages/export/export.component.html -->
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Export DTR</h1>
+      <p class="page-sub">Select employees and generate printable DTR reports</p>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-card">
+    <div class="filter-row">
+      <!-- Employee Type Toggle -->
+      <div class="filter-group">
+        <label>EMPLOYEE TYPE</label>
+        <button 
+          class="btn-toggle" 
+          [class.active]="employeeType() === 'permanent'"
+          (click)="toggleEmployeeType()"
+        >
+          <span class="toggle-label">{{ employeeType() === 'permanent' ? 'Regular' : 'COS' }}</span>
+        </button>
+      </div>
+
+      <!-- Department Filter Toggle -->
+      <div class="filter-group">
+        <label>FILTER BY DEPARTMENT</label>
+        <button 
+          class="btn-toggle" 
+          [class.active]="filterByDepartment()"
+          (click)="toggleDepartmentFilter()"
+        >
+          <span class="toggle-label">{{ filterByDepartment() ? 'ON' : 'OFF' }}</span>
+        </button>
+      </div>
+
+      <!-- Department Dropdown (shown when filter is ON) -->
+      @if (filterByDepartment()) {
+        <div class="filter-group">
+          <label>DEPARTMENT</label>
+          <select [value]="selectedDepartment() || ''" (change)="onDepartmentChange($event)">
+            <option value="">All Departments</option>
+            @for (dept of departments(); track dept.id) {
+              <option [value]="dept.id">{{ dept.name }}</option>
+            }
+          </select>
+        </div>
+      }
+    </div>
+
+    <!-- Date Range -->
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>FROM</label>
+        <input type="date" [value]="fromDate()" (change)="onFromDateChange($event)" />
+      </div>
+      <div class="filter-group">
+        <label>TO</label>
+        <input type="date" [value]="toDate()" (change)="onToDateChange($event)" />
+      </div>
+    </div>
+
+    <!-- Selection Actions -->
+    <div class="actions">
+      <button class="btn-action" (click)="selectAll()">
+        ✓ Select All ({{ filtered().length }})
+      </button>
+      <button class="btn-action" (click)="clearSelection()">
+        ✕ Clear Selection
+      </button>
+      <span class="selection-count">{{ selectedEmployees().size }} selected</span>
+    </div>
+  </div>
+
+  <!-- Employee List -->
+  @if (loading()) {
+    <div class="loading">Loading employees...</div>
+  } @else if (filtered().length === 0) {
+    <div class="empty">No employees found matching the filters.</div>
+  } @else {
+    <div class="employee-list">
+      @for (group of grouped(); track group[0]) {
+        <div class="dept-group">
+          <h3 class="dept-header">{{ group[0] }} <span class="dept-count">({{ group[1].length }})</span></h3>
+          <div class="emp-grid">
+            @for (emp of group[1]; track emp.id) {
+              <div 
+                class="emp-card" 
+                [class.selected]="isSelected(emp.id)"
+                [class.focused]="focusedEmployee() === emp.id"
+                tabindex="0"
+                (focus)="onEmployeeFocus(emp.id)"
+                (blur)="onEmployeeBlur()"
+                (click)="toggleEmployee(emp.id)"
+              >
+                <div class="emp-checkbox">
+                  @if (isSelected(emp.id)) {
+                    <span class="check">✓</span>
+                  }
+                </div>
+                <div class="emp-info">
+                  <div class="emp-name">{{ emp.name }}</div>
+                  <div class="emp-id">ID: {{ emp.id }}</div>
+                </div>
+                @if (focusedEmployee() === emp.id) {
+                  <div class="focus-ring"></div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Print Button (Fixed Bottom) -->
+  <div class="print-bar">
+    <button 
+      class="btn-print" 
+      (click)="print()" 
+      [disabled]="printing() || selectedEmployees().size === 0 || !fromDate() || !toDate()"
+    >
+      {{ printing() ? '🖨 Generating PDF...' : '🖨 Print Selected (' + selectedEmployees().size + ')' }}
+    </button>
+  </div>
+
+</div>

@@ -10,11 +10,13 @@ import employeeRoutes     from '../routes/employee.routes';
 import departmentRoutes   from '../routes/department.routes';
 const authRoutes          = require('../routes/auth.routes');
 
+
 const app = express();
 
 // ─── Middleware ───────────────────────────────────────────────
 app.use(express.json());
 app.use(morgan('dev'));
+app.use('/dtr', require('../routes/print.routes'));
 
 const allowedOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:4200';
 app.use(cors({

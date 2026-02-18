@@ -41,6 +41,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/upload/upload.component').then((m) => m.UploadComponent),
   },
+  {
+     path: 'export',
+     canActivate: [authGuard],
+     loadComponent: () => import('./pages/export/export.component').then(m => m.ExportComponent)
+   },
+    
 
   // Catch-all
   {
