@@ -130,7 +130,21 @@ function buildDtrRecords(punches: PunchLog[]): DtrRecord[] {
     if (nextDayRecord) records.push(nextDayRecord);
   }
 
-  return records;
+  // Merge duplicate dates (night shift creates 2 rows for same date)
+  const merged = new Map<string, DtrRecord>();
+  for (const rec of records) {
+    if (!merged.has(rec.date)) {
+      merged.set(rec.date, { ...rec });
+    } else {
+      const existing = merged.get(rec.date)!;
+      if (!existing.am_in  && rec.am_in)  existing.am_in  = rec.am_in;
+      if (!existing.am_out && rec.am_out) existing.am_out = rec.am_out;
+      if (!existing.pm_in  && rec.pm_in)  existing.pm_in  = rec.pm_in;
+      if (!existing.pm_out && rec.pm_out) existing.pm_out = rec.pm_out;
+    }
+  }
+
+  return Array.from(merged.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // ─── POST /dtr/compute ────────────────────────────────────────

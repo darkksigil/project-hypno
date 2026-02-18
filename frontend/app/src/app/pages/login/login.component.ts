@@ -1,7 +1,7 @@
 import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
@@ -14,6 +14,7 @@ import { AuthService } from '../../core/services/auth.service';
 export class LoginComponent {
   private auth   = inject(AuthService);
   private router = inject(Router);
+  private route  = inject(ActivatedRoute); // 👈 added
 
   username  = signal('');
   password  = signal('');
@@ -45,7 +46,9 @@ export class LoginComponent {
     this.auth.login(this.username(), this.password()).subscribe({
       next: () => {
         this.loading.set(false);
-        this.router.navigate(['/dtr']);
+        // Redirect to returnUrl if present, otherwise default to /dtr
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/dtr';
+        this.router.navigateByUrl(returnUrl);
       },
       error: () => {
         this.loading.set(false);
