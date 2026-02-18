@@ -9,19 +9,18 @@ import dtrRoutes          from '../routes/dtr.routes';
 import employeeRoutes     from '../routes/employee.routes';
 import departmentRoutes   from '../routes/department.routes';
 const authRoutes          = require('../routes/auth.routes');
-
+const printRoutes         = require('../routes/print.routes');
 
 const app = express();
 
 // ─── Middleware ───────────────────────────────────────────────
 app.use(express.json());
 app.use(morgan('dev'));
-app.use('/dtr', require('../routes/print.routes'));
 
 const allowedOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:4200';
 app.use(cors({
   origin:      allowedOrigin,
-  credentials: true, // required for session cookies
+  credentials: true,
 }));
 
 app.use(session({
@@ -34,7 +33,7 @@ app.use(session({
   },
 }));
 
-// ─── Public routes (no auth required) ────────────────────────
+// ─── Public routes ────────────────────────────────────────────
 app.use('/auth', authRoutes);
 
 app.get('/health', async (_req: Request, res: Response) => {
@@ -47,8 +46,9 @@ app.get('/health', async (_req: Request, res: Response) => {
   }
 });
 
-// ─── Protected routes (auth required) ────────────────────────
+// ─── Protected routes ─────────────────────────────────────────
 app.use('/csv',         requireAuth, csvRoutes);
+app.use('/dtr',         requireAuth, printRoutes);   // ← print first so /print and /test-pdf aren't swallowed by dtrRoutes
 app.use('/dtr',         requireAuth, dtrRoutes);
 app.use('/employees',   requireAuth, employeeRoutes);
 app.use('/departments', requireAuth, departmentRoutes);
