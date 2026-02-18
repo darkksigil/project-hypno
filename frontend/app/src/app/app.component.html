@@ -1,7 +1,11 @@
 <!-- src/app/app.component.html -->
-<div class="app-layout">
-  <app-navbar></app-navbar>
-  <main class="main-content">
-    <router-outlet></router-outlet>
-  </main>
-</div>
+@if (showNavbar()) {
+  <div class="app-layout">
+    <app-navbar></app-navbar>
+    <main class="main-content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+} @else {
+  <router-outlet></router-outlet>
+}
