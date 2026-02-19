@@ -14,12 +14,20 @@ interface PrintRequest {
 function generateDtrHtml(employeeData: any, fromDate: string, toDate: string): string {
   const { name, employee_type, department, records } = employeeData;
 
-  // Build a full list of every date in the range
-  const start = new Date(fromDate + 'T00:00:00');
-  const end   = new Date(toDate   + 'T00:00:00');
+  // Build a full list of every date in the range (no timezone conversion)
   const allDates: string[] = [];
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    allDates.push(d.toISOString().slice(0, 10));
+  const [startY, startM, startD] = fromDate.split('-').map(Number);
+  const [endY, endM, endD] = toDate.split('-').map(Number);
+  
+  const current = new Date(startY, startM - 1, startD);
+  const end = new Date(endY, endM - 1, endD);
+  
+  while (current <= end) {
+    const y = current.getFullYear();
+    const m = String(current.getMonth() + 1).padStart(2, '0');
+    const d = String(current.getDate()).padStart(2, '0');
+    allDates.push(`${y}-${m}-${d}`);
+    current.setDate(current.getDate() + 1);
   }
 
   // Index records by date
@@ -32,9 +40,10 @@ function generateDtrHtml(employeeData: any, fromDate: string, toDate: string): s
 
   const rows = allDates.map((dateStr) => {
     const r   = byDate[dateStr];
-    const d   = new Date(dateStr + 'T00:00:00');
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
     const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    const dayLabel = `${d.getDate()} ${days[d.getDay()]}`;
+    const dayLabel = `${date.getDate()} ${days[date.getDay()]}`;
 
     const hasRecord = r && (r.am_in || r.pm_out);
     if (!hasRecord) absentCount++;
@@ -175,6 +184,7 @@ function generateDtrHtml(employeeData: any, fromDate: string, toDate: string): s
       margin-top: 8px;
       font-size: 10pt;
       line-height: 1.4;
+      padding-bottom: 50px;
     }
 
     .sig-section { margin-top: 16px; }
@@ -193,6 +203,7 @@ function generateDtrHtml(employeeData: any, fromDate: string, toDate: string): s
     }
     .sig-first .sig-sub {
       font-size: 10pt;
+      padding-bottom: 50px;
     }
     .sig-second {
       display: flex;
@@ -282,23 +293,10 @@ function generateDtrHtml(employeeData: any, fromDate: string, toDate: string): s
 }
 
 function formatDateLabel(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-}
-
-function formatDay(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${d.getDate()} ${days[d.getDay()]}`;
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 }
 
 function formatTime(iso: string | null): string {
@@ -325,7 +323,6 @@ async function launchPuppeteer() {
 }
 
 // ── GET /dtr/test-pdf ─────────────────────────────────────────────────────────
-// Purely tests Puppeteer with hardcoded dummy data — NO database involved
 router.get('/test-pdf', async (_req: Request, res: Response) => {
   console.log('[TEST-PDF] Starting Puppeteer test...');
   try {
@@ -399,7 +396,7 @@ router.post('/print', async (req: Request, res: Response) => {
     console.log('[PRINT] Found records:', records.length);
 
     if (!records.length) {
-      res.status(404).json({ status: 'error', message: 'No DTR records found for this employee.' });
+      res.status(404).json({ status: 'error', message: 'No DTR records found for selected employees.' });
       return;
     }
 

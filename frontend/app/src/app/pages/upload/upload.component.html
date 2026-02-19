@@ -1,110 +1,108 @@
 <!-- src/app/pages/upload/upload.component.html -->
 <div class="page">
+  
   <div class="page-header">
     <h1 class="page-title">Upload CSV</h1>
-    <p class="page-sub">Import punch log data from your biometric device export</p>
+    <p class="page-sub">Import punch logs from biometric device export</p>
   </div>
 
-  <!-- Drop zone -->
-  <div
-    class="dropzone"
-    [class.dragover]="dragOver()"
-    [class.has-file]="selectedFile()"
-    (dragover)="onDragOver($event)"
-    (dragleave)="onDragLeave()"
-    (drop)="onDrop($event)"
-  >
-    @if (selectedFile()) {
-      <div class="file-selected">
-        <span class="file-icon">📄</span>
-        <div class="file-info">
-          <div class="file-name">{{ selectedFile()!.name }}</div>
-          <div class="file-size">{{ (selectedFile()!.size / 1024).toFixed(1) }} KB</div>
+  @if (!showPreview()) {
+    <!-- Step 1: File Selection with Drag & Drop -->
+    <div class="upload-card">
+      <div 
+        class="upload-zone" 
+        [class.dragging]="dragOver()"
+        (click)="fileInput.click()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)"
+      >
+        <div class="upload-icon">
+          {{ dragOver() ? '📥' : '📁' }}
         </div>
-        <button class="remove-btn" (click)="clearFile()">✕</button>
+        <p class="upload-label">
+          {{ dragOver() ? 'Drop CSV file here' : 'Click or drag CSV file to upload' }}
+        </p>
+        <p class="upload-hint">Supports employee_id, name, timestamp format</p>
+        
+        <input 
+          #fileInput
+          type="file" 
+          accept=".csv" 
+          (change)="onFileSelect($event)" 
+          class="file-input"
+        />
       </div>
-    } @else {
-      <div class="drop-prompt">
-        <span class="drop-icon">📤</span>
-        <p>Drag & drop your CSV file here</p>
-        <label class="browse-btn">
-          <input type="file" accept=".csv" (change)="onFileSelected($event)" hidden />
-        </label>
-      </div>
-    }
-  </div>
 
-  <!-- Upload button -->
-  @if (selectedFile()) {
-    <button
-      class="btn btn-primary"
-      (click)="upload()"
-      [disabled]="uploading()"
-    >
-      {{ uploading() ? 'Uploading...' : '⬆ Upload CSV' }}
-    </button>
-  }
-
-  <!-- Upload result -->
-  @if (uploadResult()) {
-    <div class="result-card" [class.error]="uploadResult()!.status === 'error'">
-      <div class="result-title">
-        {{ uploadResult()!.status === 'ok' ? '✅ Upload Successful' : '❌ Upload Failed' }}
-      </div>
-      <div class="result-msg">{{ uploadResult()!.message }}</div>
-      @if (uploadResult()!.status === 'ok') {
-        <div class="result-stats">
-          <div class="stat">
-            <span class="stat-val">{{ uploadResult()!.inserted }}</span>
-            <span class="stat-lbl">Inserted</span>
-          </div>
-          <div class="stat">
-            <span class="stat-val">{{ uploadResult()!.skipped }}</span>
-            <span class="stat-lbl">Skipped</span>
-          </div>
-          <div class="stat">
-            <span class="stat-val">{{ uploadResult()!.employees }}</span>
-            <span class="stat-lbl">Employees</span>
-          </div>
+      @if (uploading()) {
+        <div class="loading-bar">
+          <div class="loading-spinner"></div>
+          <span>Parsing CSV file...</span>
         </div>
+      }
+
+      @if (error()) {
+        <div class="alert alert-error">{{ error() }}</div>
+      }
+
+      @if (success() && !showPreview()) {
+        <div class="alert alert-success">{{ success() }}</div>
       }
     </div>
   }
 
-  <!-- Divider -->
-  <div class="divider">
-    <span>Then compute DTR</span>
-  </div>
-
-  <!-- Compute section -->
-  <div class="compute-section">
-    <div class="compute-info">
-      <h2>Compute DTR</h2>
-      <p>Process uploaded punch logs into IN/OUT DTR records. Run this after every CSV upload.</p>
-    </div>
-    <button
-      class="btn btn-compute"
-      (click)="computeDtr()"
-      [disabled]="computing()"
-    >
-      {{ computing() ? 'Computing...' : '⚡ Compute DTR' }}
-    </button>
-  </div>
-
-  @if (computeResult()) {
-    <div class="result-card" [class.error]="computeResult()!.status === 'error'">
-      <div class="result-title">
-        {{ computeResult()!.status === 'ok' ? '✅ Done' : '❌ Error' }}
-      </div>
-      <div class="result-msg">{{ computeResult()!.message }}</div>
-      @if (computeResult()!.records > 0) {
-        <div class="result-stats">
-          <div class="stat">
-            <span class="stat-val">{{ computeResult()!.records }}</span>
-            <span class="stat-lbl">Records Created</span>
-          </div>
+  @if (showPreview()) {
+    <!-- Step 2: Preview & Confirm -->
+    <div class="preview-card">
+      <div class="preview-header">
+        <div>
+          <h2 class="preview-title">Preview Parsed Data</h2>
+          <p class="preview-sub">{{ previewData().length }} punch records ready to upload</p>
         </div>
+        <div class="preview-actions">
+          <button class="btn-cancel" (click)="cancelPreview()">✕ Cancel</button>
+          <button 
+            class="btn-confirm" 
+            (click)="confirmUpload()" 
+            [disabled]="confirming()"
+          >
+            {{ confirming() ? '⏳ Uploading...' : '✓ Confirm & Upload' }}
+          </button>
+        </div>
+      </div>
+
+      @if (error()) {
+        <div class="alert alert-error">{{ error() }}</div>
       }
+
+      @if (success()) {
+        <div class="alert alert-success">{{ success() }}</div>
+      }
+
+      <!-- Preview Table -->
+      <div class="table-wrap">
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Employee ID</th>
+              <th>Name</th>
+              <th>Punched At</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (punch of previewData(); track $index) {
+              <tr>
+                <td class="td-num">{{ $index + 1 }}</td>
+                <td class="td-id">{{ punch.employee_id }}</td>
+                <td class="td-name">{{ punch.name }}</td>
+                <td class="td-time">{{ formatTimestamp(punch.punched_at) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     </div>
   }
+
 </div>
