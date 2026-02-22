@@ -7,7 +7,7 @@ let dbInstance: Database;
 
 const dbPath = path.resolve(process.cwd(), 'database', 'mydb.sqlite');
 
-async function initDb(): Promise<void> {
+export async function initDb(): Promise<void> {
   if (fs.existsSync(dbPath)) {
     try {
       const tempDb = await open({ filename: dbPath, driver: sqlite3.Database });
@@ -65,7 +65,7 @@ async function initDb(): Promise<void> {
   // ─── Migrations ──────────────────────────────────────────
 
   const empCols: { name: string }[] = await dbInstance.all(`PRAGMA table_info(employees)`);
-  const empColNames = empCols.map((c: { name: string }) => c.name);
+  const empColNames = empCols.map((c) => c.name);
 
   if (!empColNames.includes('department_id')) {
     await dbInstance.run(`ALTER TABLE employees ADD COLUMN department_id INTEGER REFERENCES departments(id)`);
@@ -77,7 +77,7 @@ async function initDb(): Promise<void> {
   }
 
   const punchCols: { name: string }[] = await dbInstance.all(`PRAGMA table_info(punch_logs)`);
-  const punchColNames = punchCols.map((c: { name: string }) => c.name);
+  const punchColNames = punchCols.map((c) => c.name);
   if (!punchColNames.includes('filtered')) {
     await dbInstance.run(`ALTER TABLE punch_logs ADD COLUMN filtered INTEGER NOT NULL DEFAULT 0`);
     console.log('✅ Migration: added filtered to punch_logs');
@@ -86,9 +86,7 @@ async function initDb(): Promise<void> {
   console.log('✅ Database initialized at', dbPath);
 }
 
-function getDb(): Database {
+export function getDb(): Database {
   if (!dbInstance) throw new Error('Database not initialized. Call initDb() first.');
   return dbInstance;
 }
-
-module.exports = { initDb, getDb };

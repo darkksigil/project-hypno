@@ -1,14 +1,17 @@
 import { Router, Request, Response } from 'express';
+import { z } from 'zod';
+import { asyncHandler, AppError } from '../middlewares/error.middleware';
 
 const router = Router();
 
-// ─── POST /auth/login ─────────────────────────────────────────
-router.post('/login', (req: Request, res: Response) => {
-  const { username, password } = req.body;
-  console.log('ENV USER:', process.env.ADMIN_USER);
-  console.log('ENV PASS:', process.env.ADMIN_PASS);
-  console.log('GOT:', username, password);
-  // ... rest of code
+const loginSchema = z.object({
+  username: z.string().trim().min(1),
+  password: z.string().min(1),
+});
+
+// POST /auth/login
+router.post('/login', asyncHandler(async (req: Request, res: Response) => {
+  const { username, password } = loginSchema.parse(req.body);
 
   const validUser = process.env.ADMIN_USER;
   const validPass = process.env.ADMIN_PASS;
@@ -16,25 +19,26 @@ router.post('/login', (req: Request, res: Response) => {
   if (username === validUser && password === validPass) {
     (req.session as any).authenticated = true;
     res.json({ status: 'ok', message: 'Login successful.' });
-  } else {
-    res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
+    return;
   }
-});
 
-// ─── POST /auth/logout ────────────────────────────────────────
+  throw new AppError(401, 'Invalid credentials.', 'UNAUTHORIZED');
+}));
+
+// POST /auth/logout
 router.post('/logout', (req: Request, res: Response) => {
   req.session.destroy(() => {
     res.json({ status: 'ok', message: 'Logged out.' });
   });
 });
 
-// ─── GET /auth/me ─────────────────────────────────────────────
+// GET /auth/me
 router.get('/me', (req: Request, res: Response) => {
   if ((req.session as any).authenticated) {
     res.json({ status: 'ok', authenticated: true });
-  } else {
-    res.status(401).json({ status: 'error', authenticated: false });
+    return;
   }
+  res.status(401).json({ status: 'error', code: 'UNAUTHORIZED', authenticated: false });
 });
 
-module.exports = router;
+export default router;
