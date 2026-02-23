@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import cors    from 'cors';
+import helmet  from 'helmet';
 import morgan  from 'morgan';
 import session from 'express-session';
 
@@ -16,25 +17,28 @@ import departmentRoutes from './routes/department.routes';
 
 const app = express();
 
-// ─── Core Middleware ─────────────────────────────────────────
-app.use(express.json());
-app.use(morgan('dev'));
-app.use('/api', apiLimiter);
+// ─── Security ────────────────────────────────────────────────
+app.use(helmet());
 
 const allowedOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:4200';
 app.use(cors({ origin: allowedOrigin, credentials: true }));
 
+// ─── Core Middleware ─────────────────────────────────────────
+app.use(express.json({ limit: '1mb' }));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use('/api', apiLimiter);
+
 app.use(session({
-  secret:            process.env.SESSION_SECRET ?? 'imiss-fallback-secret',
+  secret:            process.env.SESSION_SECRET ?? 'test-secret-not-for-production',
   resave:            false,
   saveUninitialized: false,
   cookie: { httpOnly: true, maxAge: 8 * 60 * 60 * 1000 },
 }));
 
 // ─── Public Routes ───────────────────────────────────────────
-app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 
-app.get('/health', async (_req: Request, res: Response) => {
+app.get('/api/health', async (_req: Request, res: Response) => {
   try {
     const db = getDb();
     await db.get('SELECT 1');
@@ -45,11 +49,10 @@ app.get('/health', async (_req: Request, res: Response) => {
 });
 
 // ─── Protected Routes ────────────────────────────────────────
-// dtr.routes.ts handles both print (/print, /test-pdf) and dtr internally
-app.use('/csv',         requireAuth, csvRoutes);
-app.use('/dtr',         requireAuth, dtrRoutes);
-app.use('/employees',   requireAuth, employeeRoutes);
-app.use('/departments', requireAuth, departmentRoutes);
+app.use('/api/csv',         requireAuth, csvRoutes);
+app.use('/api/dtr',         requireAuth, dtrRoutes);
+app.use('/api/employees',   requireAuth, employeeRoutes);
+app.use('/api/departments', requireAuth, departmentRoutes);
 
 // ─── Error Handling — must be last ───────────────────────────
 app.use(notFoundHandler);

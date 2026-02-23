@@ -9,10 +9,10 @@ export const routes: Routes = [
       import('./pages/login/login.component').then((m) => m.LoginComponent),
   },
 
-  // Redirect root to employees (guard will intercept if not authenticated)
+  // Redirect root to dtr (guard will intercept if not authenticated)
   {
     path: '',
-    redirectTo: 'employees',
+    redirectTo: 'dtr',
     pathMatch: 'full',
   },
 
@@ -42,11 +42,11 @@ export const routes: Routes = [
       import('./pages/upload/upload.component').then((m) => m.UploadComponent),
   },
   {
-     path: 'export',
-     canActivate: [authGuard],
-     loadComponent: () => import('./pages/export/export.component').then(m => m.ExportComponent)
-   },
-    
+    path: 'export',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/export/export.component').then((m) => m.ExportComponent),
+  },
 
   // Catch-all
   {

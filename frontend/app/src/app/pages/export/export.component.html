@@ -8,14 +8,19 @@
     </div>
   </div>
 
+  <!-- ─── Inline error (replaces alert()) ──────────────── -->
+  @if (error()) {
+    <div class="error-msg">{{ error() }}</div>
+  }
+
   <!-- Filters -->
   <div class="filters-card">
     <div class="filter-row">
       <!-- Employee Type Toggle -->
       <div class="filter-group">
         <label>EMPLOYEE TYPE</label>
-        <button 
-          class="btn-toggle" 
+        <button
+          class="btn-toggle"
           [class.active]="employeeType() === 'permanent'"
           (click)="toggleEmployeeType()"
         >
@@ -26,8 +31,8 @@
       <!-- Department Filter Toggle -->
       <div class="filter-group">
         <label>FILTER BY DEPARTMENT</label>
-        <button 
-          class="btn-toggle" 
+        <button
+          class="btn-toggle"
           [class.active]="filterByDepartment()"
           (click)="toggleDepartmentFilter()"
         >
@@ -85,8 +90,8 @@
           <h3 class="dept-header">{{ group[0] }} <span class="dept-count">({{ group[1].length }})</span></h3>
           <div class="emp-grid">
             @for (emp of group[1]; track emp.id) {
-              <div 
-                class="emp-card" 
+              <div
+                class="emp-card"
                 [class.selected]="isSelected(emp.id)"
                 [class.focused]="focusedEmployee() === emp.id"
                 tabindex="0"
@@ -116,9 +121,9 @@
 
   <!-- Print Button (Fixed Bottom) -->
   <div class="print-bar">
-    <button 
-      class="btn-print" 
-      (click)="print()" 
+    <button
+      class="btn-print"
+      (click)="print()"
       [disabled]="printing() || selectedEmployees().size === 0 || !fromDate() || !toDate()"
     >
       {{ printing() ? '🖨 Generating PDF...' : '🖨 Print Selected (' + selectedEmployees().size + ')' }}

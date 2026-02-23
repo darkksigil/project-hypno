@@ -1,49 +1,99 @@
 <!-- src/app/pages/logs/logs.component.html -->
 <div class="page">
+
   <div class="page-header">
     <div>
-      <h1 class="page-title">Raw Punch Logs</h1>
-      <p class="page-sub">{{ logs().length }} records — direct from biometric device</p>
+      <h1 class="page-title">Punch Logs</h1>
+      <p class="page-sub">Raw biometric time records — {{ total() | number }} total entries</p>
     </div>
   </div>
 
-  @if (loading()) {
-    <div class="loading">Loading logs...</div>
-  } @else if (logs().length === 0) {
-    <div class="empty">No punch logs found. Upload a CSV to get started.</div>
-  } @else {
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Employee</th>
-            <th>Department</th>
-            <th>Punch Time</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (log of logs(); track log.id) {
+  <!-- Filter Tabs -->
+  <div class="filter-tabs">
+    @for (opt of filterOptions; track opt.value) {
+      <button
+        class="tab-btn"
+        [class.active]="filterMode() === opt.value"
+        (click)="setFilter(opt.value)"
+      >
+        {{ opt.label }}
+        @if (filterMode() === opt.value && !loading()) {
+          <span class="tab-count">{{ total() | number }}</span>
+        }
+      </button>
+    }
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input
+      class="search-input"
+      type="text"
+      placeholder="Search by name, ID, or department..."
+      [value]="searchQuery()"
+      (input)="onSearchChange($event)"
+    />
+    @if (searchQuery()) {
+      <span class="search-clear" (click)="searchQuery.set('')">✕</span>
+    }
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <span>Loading punch logs...</span>
+      </div>
+    } @else if (displayed().length === 0) {
+      <div class="empty-state">
+        <span class="empty-icon">📭</span>
+        <p>No punch logs found{{ searchQuery() ? ' matching your search' : '' }}.</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="logs-table">
+          <thead>
             <tr>
-              <td class="row-num">{{ log.id }}</td>
-              <td>
-                <div class="emp-name">{{ log.name }}</div>
-                <div class="emp-id">ID: {{ log.employee_id }}</div>
-              </td>
-              <td class="dept">{{ log.department ?? '—' }}</td>
-              <td class="punch-time">{{ formatDateTime(log.punched_at) }}</td>
-              <td>
-                @if (log.used) {
-                  <span class="badge badge-ok">Processed</span>
-                } @else {
-                  <span class="badge badge-pending">Pending</span>
-                }
-              </td>
+              <th class="th-id">Employee ID</th>
+              <th class="th-name">Name</th>
+              <th class="th-dept">Department</th>
+              <th class="th-time">Punched At</th>
+              <th class="th-status">Status</th>
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  }
+          </thead>
+          <tbody>
+            @for (log of displayed(); track log.id) {
+              <tr [class.row-filtered]="log.filtered" [class.row-processed]="log.used && !log.filtered">
+                <td class="td-id">{{ log.employee_id }}</td>
+                <td class="td-name">{{ log.name }}</td>
+                <td class="td-dept">{{ log.department ?? '—' }}</td>
+                <td class="td-time">{{ formatDateTime(log.punched_at) }}</td>
+                <td class="td-status">
+                  <span class="badge" [class]="statusClass(log)">
+                    {{ statusLabel(log) }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      @if (totalPages() > 1) {
+        <div class="pagination">
+          <button class="page-btn" [disabled]="currentPage() === 1" (click)="goToPage(currentPage() - 1)">
+            ← Prev
+          </button>
+          <span class="page-info">Page {{ currentPage() }} of {{ totalPages() }}</span>
+          <button class="page-btn" [disabled]="currentPage() === totalPages()" (click)="goToPage(currentPage() + 1)">
+            Next →
+          </button>
+        </div>
+      }
+    }
+  </div>
+
 </div>

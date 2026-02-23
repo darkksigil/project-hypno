@@ -7,6 +7,10 @@
     <p class="page-sub">{{ employees().length }} registered employees</p>
   </div>
 
+  @if (error()) {
+    <div class="error-msg">{{ error() }}</div>
+  }
+
   <div class="dept-panel">
     <div class="dept-panel-header">
       <span class="dept-label">🏢 Departments</span>
@@ -69,9 +73,9 @@
                 <div class="emp-id">ID: {{ emp.id }}</div>
               </td>
 
-              @if (emp.editing) {
+              @if (isEditing(emp.id)) {
                 <td>
-                  <select class="inline-select" [value]="emp.editDeptId ?? ''" (change)="onDeptChange(emp, $event)">
+                  <select class="inline-select" [value]="getEditDeptId(emp.id) ?? ''" (change)="onDeptChange(emp.id, $event)">
                     <option value="">— Unassigned —</option>
                     @for (dept of departments(); track dept.id) {
                       <option [value]="dept.id">{{ dept.name }}</option>
@@ -79,16 +83,16 @@
                   </select>
                 </td>
                 <td>
-                  <select class="inline-select" [value]="emp.editType" (change)="onTypeChange(emp, $event)">
+                  <select class="inline-select" [value]="getEditType(emp.id)" (change)="onTypeChange(emp.id, $event)">
                     <option value="permanent">Permanent</option>
                     <option value="cos">COS</option>
                   </select>
                 </td>
                 <td class="td-actions">
-                  <button class="btn-save" (click)="saveEdit(emp)" [disabled]="emp.saving">
-                    {{ emp.saving ? 'Saving...' : '✓ Save' }}
+                  <button class="btn-save" (click)="saveEdit(emp)" [disabled]="isSaving(emp.id)">
+                    {{ isSaving(emp.id) ? 'Saving...' : '✓ Save' }}
                   </button>
-                  <button class="btn-cancel" (click)="cancelEdit(emp)">Cancel</button>
+                  <button class="btn-cancel" (click)="cancelEdit(emp.id)">Cancel</button>
                 </td>
               } @else {
                 <td>

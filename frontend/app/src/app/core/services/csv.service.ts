@@ -1,33 +1,48 @@
-// src/app/core/services/csv.service.ts
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+
+// ─── Types ────────────────────────────────────────────────────
+
+export interface ParsedPunch {
+  employee_id: string;
+  name:        string;
+  punched_at:  string;
+}
+
+export interface ParseResult {
+  status:  string;
+  count:   number;
+  preview: ParsedPunch[];
+  data:    ParsedPunch[];
+}
 
 export interface UploadResult {
   status:    string;
-  message:   string;
   inserted:  number;
   skipped:   number;
   employees: number;
 }
 
+// ─── Service ──────────────────────────────────────────────────
+
 @Injectable({ providedIn: 'root' })
 export class CsvService {
+  private http = inject(HttpClient);
   private base = environment.apiUrl;
 
-  constructor(private http: HttpClient) {}
+  /** Parse CSV and return preview — no DB write */
+  parse(file: File): Observable<ParseResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<ParseResult>(`${this.base}/csv/parse`, formData);
+  }
 
+  /** Parse CSV and save to DB in one step */
   upload(file: File): Observable<UploadResult> {
     const formData = new FormData();
     formData.append('file', file);
-
-    return this.http.post<UploadResult>(`${this.base}/csv/upload`, formData).pipe(
-      catchError(err => {
-        console.error(err);
-        return of({ status: 'error', message: String(err), inserted: 0, skipped: 0, employees: 0 });
-      })
-    );
+    return this.http.post<UploadResult>(`${this.base}/csv/upload`, formData);
   }
 }

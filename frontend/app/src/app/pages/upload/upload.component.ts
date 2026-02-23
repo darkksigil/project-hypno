@@ -1,19 +1,6 @@
 import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
-
-interface ParsedPunch {
-  employee_id: string;
-  name:        string;   // ← added
-  punched_at:  string;
-}
-
-interface UploadResponse {
-  status:   string;
-  message:  string;
-  inserted: number;
-}
+import { CsvService, ParsedPunch, UploadResult } from '../../core/services/csv.service';
 
 @Component({
   selector: 'app-upload',
@@ -23,22 +10,19 @@ interface UploadResponse {
   styleUrl: './upload.component.css'
 })
 export class UploadComponent {
-  private http = inject(HttpClient);
-  private base = environment.apiUrl;
+  private csvService = inject(CsvService);
 
   selectedFile = signal<File | null>(null);
   uploading    = signal(false);
   error        = signal('');
   success      = signal('');
-
-  // Drag & drop
-  dragOver     = signal(false);            // ← added
-
+  dragOver     = signal(false);
   showPreview  = signal(false);
   previewData  = signal<ParsedPunch[]>([]);
   confirming   = signal(false);
 
-  // ── Drag & drop handlers ──────────────────────────────────
+  // ── Drag & drop ───────────────────────────────────────────
+
   onDragOver(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
@@ -55,7 +39,6 @@ export class UploadComponent {
     event.preventDefault();
     event.stopPropagation();
     this.dragOver.set(false);
-
     const file = event.dataTransfer?.files?.[0];
     if (file && file.name.endsWith('.csv')) {
       this.handleFile(file);
@@ -64,12 +47,11 @@ export class UploadComponent {
     }
   }
 
-  // ── File input handler ────────────────────────────────────
+  // ── File input ────────────────────────────────────────────
+
   onFileSelect(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      this.handleFile(input.files[0]);
-    }
+    if (input.files?.[0]) this.handleFile(input.files[0]);
   }
 
   private handleFile(file: File): void {
@@ -81,63 +63,61 @@ export class UploadComponent {
     this.parseAndPreview(file);
   }
 
-  // ── Parse & preview ───────────────────────────────────────
+  // ── Step 1: Parse → preview ───────────────────────────────
+
   private parseAndPreview(file: File): void {
     this.uploading.set(true);
     this.error.set('');
 
-    const formData = new FormData();
-    formData.append('file', file);
-
-    this.http.post<{ status: string; data: ParsedPunch[]; message?: string }>(
-      `${this.base}/csv/parse`,
-      formData,
-      { withCredentials: true }
-    ).subscribe({
+    this.csvService.parse(file).subscribe({
       next: (res) => {
         this.uploading.set(false);
-        if (res.status === 'ok' && res.data) {
+        if (res.status === 'ok' && res.data?.length) {
           this.previewData.set(res.data);
           this.showPreview.set(true);
-          this.success.set(`Parsed ${res.data.length} punch records. Review below and confirm to upload.`);
+          this.success.set(`Parsed ${res.count} punch records. Review below and confirm to upload.`);
         } else {
-          this.error.set(res.message || 'Failed to parse CSV');
+          this.error.set('No valid records found in this CSV.');
         }
       },
       error: (err) => {
         this.uploading.set(false);
-        this.error.set(err.error?.message || 'Upload failed');
+        this.error.set(err.error?.message || 'Failed to parse CSV.');
       }
     });
   }
 
-  // ── Confirm upload ────────────────────────────────────────
+  // ── Step 2: Confirm → upload ──────────────────────────────
+
   confirmUpload(): void {
+    const file = this.selectedFile();
+    if (!file) {
+      this.error.set('Original file not found. Please re-select your CSV.');
+      return;
+    }
+
     this.confirming.set(true);
     this.error.set('');
 
-    const payload = { punches: this.previewData() };
-
-    this.http.post<UploadResponse>(
-      `${this.base}/csv/upload`,
-      payload,
-      { withCredentials: true }
-    ).subscribe({
-      next: (res) => {
+    this.csvService.upload(file).subscribe({
+      next: (res: UploadResult) => {
         this.confirming.set(false);
         this.showPreview.set(false);
         this.selectedFile.set(null);
         this.previewData.set([]);
-        this.success.set(`✔ Successfully uploaded ${res.inserted} punch records to database`);
+        this.success.set(
+          `✔ Uploaded ${res.inserted} punch records — ${res.skipped} duplicates skipped (${res.employees} employees).`
+        );
       },
       error: (err) => {
         this.confirming.set(false);
-        this.error.set(err.error?.message || 'Upload to database failed');
+        this.error.set(err.error?.message || 'Upload to database failed.');
       }
     });
   }
 
   // ── Cancel ────────────────────────────────────────────────
+
   cancelPreview(): void {
     this.showPreview.set(false);
     this.previewData.set([]);
@@ -147,10 +127,9 @@ export class UploadComponent {
   }
 
   // ── Helpers ───────────────────────────────────────────────
+
   formatTimestamp(iso: string): string {
-    const d    = new Date(iso);
-    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    return `${date} ${time}`;
+    const d = new Date(iso);
+    return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
   }
 }

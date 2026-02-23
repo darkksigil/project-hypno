@@ -1,20 +1,9 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
-
-interface Employee {
-  id:            string;
-  name:          string;
-  department:    string | null;
-  employee_type: string;
-}
-
-interface Department {
-  id:   number;
-  name: string;
-}
+import { firstValueFrom } from 'rxjs';
+import { EmployeeService, Employee, Department } from '../../core/services/employee.service';
+import { DtrService } from '../../core/services/dtr.service';
 
 @Component({
   selector: 'app-export',
@@ -23,39 +12,38 @@ interface Department {
   templateUrl: './export.component.html',
   styleUrl: './export.component.css'
 })
-export class ExportComponent implements OnInit {
-  private http = inject(HttpClient);
-  private base = environment.apiUrl;
+export class ExportComponent implements OnInit, OnDestroy {
+  private employeeService = inject(EmployeeService);
+  private dtrService      = inject(DtrService);
 
-  employees      = signal<Employee[]>([]);
-  departments    = signal<Department[]>([]);
-  loading        = signal(true);
-  printing       = signal(false);
+  employees   = signal<Employee[]>([]);
+  departments = signal<Department[]>([]);
+  loading     = signal(true);
+  printing    = signal(false);
+  error       = signal('');   // replaces alert()
 
   // Filters
-  employeeType        = signal<'permanent' | 'cos'>('permanent');
-  filterByDepartment  = signal(false);
-  selectedDepartment  = signal<number | null>(null);
+  employeeType       = signal<string>('permanent');
+  filterByDepartment = signal(false);
+  selectedDepartment = signal<number | null>(null);
 
   // Selection
   selectedEmployees = signal<Set<string>>(new Set());
   focusedEmployee   = signal<string | null>(null);
-  focusTimer:       any = null;
+  private focusTimer: ReturnType<typeof setTimeout> | null = null;  // properly typed
 
   // Date range
   fromDate = signal('');
   toDate   = signal('');
 
-  // Computed filtered employees
   filtered = computed(() => {
     let data = this.employees().filter(e => e.employee_type === this.employeeType());
-    
+
     if (this.filterByDepartment() && this.selectedDepartment()) {
       const deptName = this.departments().find(d => d.id === this.selectedDepartment())?.name;
       data = data.filter(e => e.department === deptName);
     }
 
-    // Sort by department, then name
     return data.sort((a, b) => {
       const deptA = a.department || 'Unassigned';
       const deptB = b.department || 'Unassigned';
@@ -64,7 +52,6 @@ export class ExportComponent implements OnInit {
     });
   });
 
-  // Group by department for display
   grouped = computed(() => {
     const map = new Map<string, Employee[]>();
     for (const emp of this.filtered()) {
@@ -75,32 +62,38 @@ export class ExportComponent implements OnInit {
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   });
 
-  ngOnInit(): void {
-    this.loadData();
+  ngOnInit(): void { this.loadData(); }
+
+  ngOnDestroy(): void {
+    // Prevent timer firing on destroyed component
+    if (this.focusTimer) clearTimeout(this.focusTimer);
   }
 
-  loadData(): void {
+  async loadData(): Promise<void> {
     this.loading.set(true);
-    Promise.all([
-      this.http.get<Employee[]>(`${this.base}/employees`).toPromise(),
-      this.http.get<Department[]>(`${this.base}/departments`).toPromise()
-    ]).then(([emps, depts]) => {
-      this.employees.set(emps || []);
-      this.departments.set(depts || []);
+    this.error.set('');
+    try {
+      const [empRes, deptRes] = await Promise.all([
+        firstValueFrom(this.employeeService.getAll()),
+        firstValueFrom(this.employeeService.getAllDepartments()),
+      ]);
+      this.employees.set(empRes.data ?? []);
+      this.departments.set(deptRes.data ?? []);
+    } catch {
+      this.error.set('Failed to load employees. Please try again.');
+    } finally {
       this.loading.set(false);
-    }).catch(() => this.loading.set(false));
+    }
   }
 
   toggleEmployeeType(): void {
-    this.employeeType.set(this.employeeType() === 'permanent' ? 'cos' : 'permanent');
+    this.employeeType.set(this.employeeType() === 'permanent' ? 'casual' : 'permanent');
     this.clearSelection();
   }
 
   toggleDepartmentFilter(): void {
     this.filterByDepartment.set(!this.filterByDepartment());
-    if (!this.filterByDepartment()) {
-      this.selectedDepartment.set(null);
-    }
+    if (!this.filterByDepartment()) this.selectedDepartment.set(null);
     this.clearSelection();
   }
 
@@ -110,14 +103,11 @@ export class ExportComponent implements OnInit {
     this.clearSelection();
   }
 
-  // Focus-based selection (2-second hold)
+  // ─── Focus-based selection (2-second hold) ────────────────
+
   onEmployeeFocus(empId: string): void {
     this.focusedEmployee.set(empId);
-    
-    // Clear existing timer
     if (this.focusTimer) clearTimeout(this.focusTimer);
-    
-    // Start 2-second timer
     this.focusTimer = setTimeout(() => {
       this.toggleEmployee(empId);
       this.focusedEmployee.set(null);
@@ -129,53 +119,41 @@ export class ExportComponent implements OnInit {
     this.focusedEmployee.set(null);
   }
 
-  // Manual toggle (click)
   toggleEmployee(empId: string): void {
     const selected = new Set(this.selectedEmployees());
-    if (selected.has(empId)) {
-      selected.delete(empId);
-    } else {
-      selected.add(empId);
-    }
+    selected.has(empId) ? selected.delete(empId) : selected.add(empId);
     this.selectedEmployees.set(selected);
   }
 
-  isSelected(empId: string): boolean {
-    return this.selectedEmployees().has(empId);
-  }
-
-  clearSelection(): void {
-    this.selectedEmployees.set(new Set());
-  }
-
+  isSelected(empId: string): boolean { return this.selectedEmployees().has(empId); }
+  clearSelection(): void             { this.selectedEmployees.set(new Set()); }
   selectAll(): void {
-    const ids = new Set(this.filtered().map(e => e.id));
-    this.selectedEmployees.set(ids);
+    this.selectedEmployees.set(new Set(this.filtered().map(e => e.id)));
   }
+
+  // ─── Print ────────────────────────────────────────────────
 
   print(): void {
+    this.error.set('');
+
     if (!this.fromDate() || !this.toDate()) {
-      alert('Please select date range');
+      this.error.set('Please select a date range.');
       return;
     }
-
     if (this.selectedEmployees().size === 0) {
-      alert('Please select at least one employee');
+      this.error.set('Please select at least one employee.');
       return;
     }
 
     this.printing.set(true);
 
-    const payload = {
+    this.dtrService.print({
       employee_ids:  Array.from(this.selectedEmployees()),
       employee_type: this.employeeType(),
       from:          this.fromDate(),
-      to:            this.toDate()
-    };
-
-    this.http.post(`${this.base}/dtr/print`, payload, { responseType: 'blob' }).subscribe({
+      to:            this.toDate(),
+    }).subscribe({
       next: (blob: Blob) => {
-        // Download PDF
         const url = window.URL.createObjectURL(blob);
         const a   = document.createElement('a');
         a.href    = url;
@@ -184,8 +162,8 @@ export class ExportComponent implements OnInit {
         window.URL.revokeObjectURL(url);
         this.printing.set(false);
       },
-      error: () => {
-        alert('Failed to generate PDF');
+      error: (err) => {
+        this.error.set(err.error?.message || 'Failed to generate PDF. Please try again.');
         this.printing.set(false);
       }
     });
