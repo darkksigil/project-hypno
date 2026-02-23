@@ -43,9 +43,10 @@ describe('dedupPunches', () => {
 
 describe('assignColumns', () => {
   const make = (n: number) =>
-    Array.from({ length: n }, (_, i) =>
-      punch(i + 1, 'E001', `2026-01-02T0${8 + i}:00:00`),
-    );
+    Array.from({ length: n }, (_, i) => {
+      const hour = String(8 + i).padStart(2, '0');
+      return punch(i + 1, 'E001', `2026-01-02T${hour}:00:00`);
+    });
 
   it('assigns 1 punch to am_in only', () => {
     const result = assignColumns(make(1));

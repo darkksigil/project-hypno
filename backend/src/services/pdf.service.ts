@@ -1,6 +1,22 @@
 import { AppError } from '../middlewares/error.middleware';
 import logger from '../utils/logger';
 
+// ─── Types ────────────────────────────────────────────────────
+
+export interface EmployeeDtrData {
+  employee_id:   string;
+  name:          string;
+  employee_type: string;
+  department:    string;
+  records: {
+    date:   string;
+    am_in:  string | null;
+    am_out: string | null;
+    pm_in:  string | null;
+    pm_out: string | null;
+  }[];
+}
+
 // ─── Helpers ──────────────────────────────────────────────────
 
 export function formatDateLabel(dateStr: string): string {
@@ -21,7 +37,7 @@ export function formatTime(iso: string | null): string {
 
 // ─── HTML Generator ───────────────────────────────────────────
 
-export function generateDtrHtml(employeeData: any, fromDate: string, toDate: string): string {
+export function generateDtrHtml(employeeData: EmployeeDtrData, fromDate: string, toDate: string): string {
   const { name, records } = employeeData;
 
   // Build every date in the range without timezone conversion

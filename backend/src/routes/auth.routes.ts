@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { timingSafeEqual } from 'crypto';
 import { asyncHandler, AppError } from '../middlewares/error.middleware';
 
 const router = Router();
@@ -16,7 +17,10 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
   const validUser = process.env.ADMIN_USER;
   const validPass = process.env.ADMIN_PASS;
 
-  if (username === validUser && password === validPass) {
+  const usernameMatch = timingSafeEqual(Buffer.from(username), Buffer.from(validUser ?? ''));
+  const passwordMatch = timingSafeEqual(Buffer.from(password), Buffer.from(validPass ?? ''));
+
+  if (usernameMatch && passwordMatch) {
     (req.session as any).authenticated = true;
     res.json({ status: 'ok', message: 'Login successful.' });
     return;

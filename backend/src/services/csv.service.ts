@@ -94,6 +94,11 @@ export async function uploadToDatabase(punches: ParsedPunch[]): Promise<UploadRe
 
   for (const p of punches) {
     const last = lastPunch.get(p.employee_id);
+    // NOTE: This is a first-pass dedup at upload time to avoid storing obvious duplicate
+    // punches from the CSV (e.g. biometric device double-fire). A second dedup pass runs
+    // during computeDtr (dedupPunches) on the stored data. Both are intentional:
+    // upload-time dedup keeps the DB clean; compute-time dedup handles punches uploaded
+    // in separate CSV batches that were not caught here.
     if (last && diffMinutes(last, p.punched_at) < DEDUP_WINDOW_MINUTES) {
       skipped++;
       continue;

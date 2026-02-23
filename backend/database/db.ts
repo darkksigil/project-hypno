@@ -1,3 +1,4 @@
+import logger from '../src/utils/logger';
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 import path from 'path';
@@ -14,7 +15,7 @@ export async function initDb(): Promise<void> {
       await tempDb.get('SELECT 1');
       await tempDb.close();
     } catch (err) {
-      console.error('❌ DB corrupted, recreating...', err);
+      logger.error('❌ DB corrupted, recreating...', err);
       fs.unlinkSync(dbPath);
     }
   }
@@ -69,21 +70,21 @@ export async function initDb(): Promise<void> {
 
   if (!empColNames.includes('department_id')) {
     await dbInstance.run(`ALTER TABLE employees ADD COLUMN department_id INTEGER REFERENCES departments(id)`);
-    console.log('✅ Migration: added department_id to employees');
+    logger.info('✅ Migration: added department_id to employees');
   }
   if (!empColNames.includes('employee_type')) {
     await dbInstance.run(`ALTER TABLE employees ADD COLUMN employee_type TEXT NOT NULL DEFAULT 'permanent'`);
-    console.log('✅ Migration: added employee_type to employees');
+    logger.info('✅ Migration: added employee_type to employees');
   }
 
   const punchCols: { name: string }[] = await dbInstance.all(`PRAGMA table_info(punch_logs)`);
   const punchColNames = punchCols.map((c) => c.name);
   if (!punchColNames.includes('filtered')) {
     await dbInstance.run(`ALTER TABLE punch_logs ADD COLUMN filtered INTEGER NOT NULL DEFAULT 0`);
-    console.log('✅ Migration: added filtered to punch_logs');
+    logger.info('✅ Migration: added filtered to punch_logs');
   }
 
-  console.log('✅ Database initialized at', dbPath);
+  logger.info('✅ Database initialized at', dbPath);
 }
 
 export function getDb(): Database {

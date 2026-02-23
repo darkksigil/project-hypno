@@ -173,32 +173,46 @@ export async function computeDtr(): Promise<{ records: number; message: string }
   for (const [, empPunches] of byEmployee) {
     const { kept, filtered } = dedupPunches(empPunches);
     filteredIds.push(...filtered.map((p) => p.id));
-
     const dtrRecords = buildDtrRecords(kept);
-
     for (const rec of dtrRecords) {
-      await db.run(
-        `INSERT INTO dtr_records (employee_id, date, am_in, am_out, pm_in, pm_out)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [empPunches[0].employee_id, rec.date, rec.am_in, rec.am_out, rec.pm_in, rec.pm_out],
-      );
       recordsInserted++;
     }
-
     usedIds.push(...kept.map((p) => p.id));
   }
 
-  if (usedIds.length) {
-    await db.run(
-      `UPDATE punch_logs SET used = 1 WHERE id IN (${usedIds.map(() => '?').join(',')})`,
-      usedIds,
-    );
-  }
-  if (filteredIds.length) {
-    await db.run(
-      `UPDATE punch_logs SET filtered = 1 WHERE id IN (${filteredIds.map(() => '?').join(',')})`,
-      filteredIds,
-    );
+  // Rebuild per-employee data for transactional write
+  await db.run('BEGIN');
+  try {
+    for (const [, empPunches] of byEmployee) {
+      const { kept, filtered } = dedupPunches(empPunches);
+      const dtrRecords = buildDtrRecords(kept);
+
+      for (const rec of dtrRecords) {
+        await db.run(
+          `INSERT INTO dtr_records (employee_id, date, am_in, am_out, pm_in, pm_out)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [empPunches[0].employee_id, rec.date, rec.am_in, rec.am_out, rec.pm_in, rec.pm_out],
+        );
+      }
+    }
+
+    if (usedIds.length) {
+      await db.run(
+        `UPDATE punch_logs SET used = 1 WHERE id IN (${usedIds.map(() => '?').join(',')})`,
+        usedIds,
+      );
+    }
+    if (filteredIds.length) {
+      await db.run(
+        `UPDATE punch_logs SET filtered = 1 WHERE id IN (${filteredIds.map(() => '?').join(',')})`,
+        filteredIds,
+      );
+    }
+
+    await db.run('COMMIT');
+  } catch (err) {
+    await db.run('ROLLBACK');
+    throw err;
   }
 
   logger.info(`DTR computed: ${recordsInserted} records inserted.`);
