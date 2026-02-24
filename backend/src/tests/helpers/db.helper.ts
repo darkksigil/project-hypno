@@ -22,7 +22,11 @@ export async function createTestDb(): Promise<Database> {
       id            TEXT    PRIMARY KEY,
       name          TEXT    NOT NULL,
       department_id INTEGER REFERENCES departments(id),
-      employee_type TEXT    NOT NULL DEFAULT 'permanent'
+      employee_type TEXT    NOT NULL DEFAULT 'permanent',
+      surname       TEXT,
+      first_name    TEXT,
+      middle_name   TEXT,
+      birthday      TEXT
     )
   `);
 

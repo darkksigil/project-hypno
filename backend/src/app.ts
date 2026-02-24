@@ -4,6 +4,8 @@ import helmet  from 'helmet';
 import morgan  from 'morgan';
 import session from 'express-session';
 import BetterSqlite3  from 'better-sqlite3';
+import path           from 'path';
+import fs             from 'fs';
 import SqliteStore    from 'better-sqlite3-session-store';
 
 import { getDb }        from '../database/db';
@@ -30,25 +32,32 @@ app.use(express.json({ limit: '1mb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use('/api', apiLimiter);
 
-// ─── Session Store (SQLite-backed — no memory leak) ──────────
-const SqliteSession = SqliteStore(session);
-const sessionDb     = new BetterSqlite3('./database/sessions.sqlite');
+// ─── Session Store ────────────────────────────────────────────
+// Use SQLite-backed store in production/dev; fall back to default
+// in-memory store during tests so no filesystem access is needed.
+const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+
+const sessionStore = (() => {
+  if (isTest) return undefined; // express-session defaults to MemoryStore
+  const SqliteSession = SqliteStore(session);
+  const sessionDbPath = path.join(__dirname, '../../database/sessions.sqlite');
+  fs.mkdirSync(path.dirname(sessionDbPath), { recursive: true });
+  const sessionDb = new BetterSqlite3(sessionDbPath);
+  return new SqliteSession({
+    client: sessionDb,
+    expired: { clear: true, intervalMs: 900_000 },
+  });
+})();
 
 app.use(session({
-  store: new SqliteSession({
-    client: sessionDb,
-    expired: {
-      clear:       true,
-      intervalMs:  900_000, // clean up expired sessions every 15 minutes
-    },
-  }),
+  ...(sessionStore ? { store: sessionStore } : {}),
   secret:            process.env.SESSION_SECRET ?? 'test-secret-not-for-production',
   resave:            false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure:   process.env.NODE_ENV === 'production', // HTTPS only in prod
-    maxAge:   8 * 60 * 60 * 1000,                   // 8 hours
+    secure:   process.env.NODE_ENV === 'production',
+    maxAge:   8 * 60 * 60 * 1000,
   },
 }));
 
