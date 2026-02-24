@@ -1,8 +1,44 @@
 /* src/styles.css */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-*, *::before, *::after {
-  box-sizing: border-box;
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ─── Light mode (default) ───────────────────────────────── */
+:root {
+  --app-bg:       #F7F7F7;
+  --app-surface:  #FFFFFF;
+  --app-border:   #E2E2E2;
+  --app-ink:      #0A0A0A;
+  --app-ink-2:    #3A3A3A;
+  --app-ink-3:    #6B6B6B;
+  --app-ink-4:    #9B9B9B;
+  --app-accent:   #0066FF;
+  --app-accent-dim: #E5EFFF;
+  --app-sidebar:  #0F1923;
+  --app-sidebar-border: #1E2D3D;
+  --app-sidebar-text: #8AA4B8;
+  --app-sidebar-active: #5BC4F5;
+  --app-sidebar-hover-bg: #1A2A3A;
+}
+
+/* ─── Dark mode ──────────────────────────────────────────── */
+html.dark {
+  --app-bg:       #111111;
+  --app-surface:  #1A1A1A;
+  --app-border:   #2A2A2A;
+  --app-ink:      #F0F0F0;
+  --app-ink-2:    #C0C0C0;
+  --app-ink-3:    #888888;
+  --app-ink-4:    #555555;
+  --app-accent:   #4D9FFF;
+  --app-accent-dim: #0D2140;
+  --app-sidebar:  #0A0A0A;
+  --app-sidebar-border: #1E1E1E;
+  --app-sidebar-text: #6B8090;
+  --app-sidebar-active: #4D9FFF;
+  --app-sidebar-hover-bg: #141414;
 }
 
 html, body {
@@ -10,7 +46,8 @@ html, body {
   padding: 0;
   height: 100%;
   font-family: 'DM Sans', sans-serif;
-  background: #f0f4f8;
-  color: #1a2d40;
+  background: var(--app-bg);
+  color: var(--app-ink);
   -webkit-font-smoothing: antialiased;
+  transition: background 0.2s ease, color 0.2s ease;
 }

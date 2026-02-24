@@ -197,4 +197,30 @@ tbody tr.row-incomplete { background: #fffaf5; }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
-}
+}/* ─── Dark mode ──────────────────────────────────────────── */
+:host-context(html.dark) .page-title      { color: #F0F0F0; }
+:host-context(html.dark) .page-sub        { color: #888888; }
+:host-context(html.dark) .btn-compute     { background: #2A2A2A; border: 1px solid #3A3A3A; color: #F0F0F0; }
+:host-context(html.dark) .btn-compute:hover:not(:disabled) { background: #3A3A3A; }
+:host-context(html.dark) .compute-msg     { background: #0D2A1A; color: #34D399; border-color: #1A4A2A; }
+:host-context(html.dark) .compute-msg.compute-error { background: #2A0D0D; color: #F87171; border-color: #4A1A1A; }
+:host-context(html.dark) .filter-group label { color: #888888; }
+:host-context(html.dark) .filter-group select,
+:host-context(html.dark) .filter-group input { background: #1A1A1A; border-color: #2A2A2A; color: #F0F0F0; }
+:host-context(html.dark) .filter-group select:focus,
+:host-context(html.dark) .filter-group input:focus { border-color: #4D9FFF; }
+:host-context(html.dark) .btn-clear       { background: #1A1A1A; border-color: #2A2A2A; color: #888888; }
+:host-context(html.dark) .btn-clear:hover { border-color: #4D9FFF; color: #F0F0F0; }
+:host-context(html.dark) .table-wrap      { border-color: #2A2A2A; }
+:host-context(html.dark) tbody tr         { border-color: #2A2A2A; }
+:host-context(html.dark) tbody tr:hover   { background: #222222; }
+:host-context(html.dark) tbody tr.row-incomplete { background: #1E1A10; }
+:host-context(html.dark) .emp-name        { color: #F0F0F0; }
+:host-context(html.dark) .emp-meta        { color: #555555; }
+:host-context(html.dark) .td-date         { color: #888888; }
+:host-context(html.dark) .td-time         { color: #4D9FFF; }
+:host-context(html.dark) .badge-ok        { background: #0D2A1A; color: #34D399; }
+:host-context(html.dark) .badge-missing   { background: #2A1A00; color: #FBBF24; }
+:host-context(html.dark) .badge-absent    { background: #2A0D0D; color: #F87171; }
+:host-context(html.dark) .loading,
+:host-context(html.dark) .empty           { color: #555555; }

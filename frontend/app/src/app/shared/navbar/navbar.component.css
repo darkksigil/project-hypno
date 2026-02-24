@@ -1,8 +1,7 @@
-/* src/app/shared/navbar/navbar.component.css */
 .navbar {
   width: 220px;
   min-height: 100vh;
-  background: #0f1923;
+  background: var(--app-sidebar);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -10,7 +9,8 @@
   top: 0;
   bottom: 0;
   z-index: 100;
-  border-right: 1px solid #1e2d3d;
+  border-right: 1px solid var(--app-sidebar-border);
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .navbar-brand {
@@ -18,7 +18,7 @@
   align-items: center;
   gap: 0.6rem;
   padding: 1.4rem 1.4rem 1.1rem;
-  border-bottom: 1px solid #1e2d3d;
+  border-bottom: 1px solid var(--app-sidebar-border);
   margin-bottom: 0.5rem;
 }
 
@@ -26,10 +26,10 @@
 
 .brand-name {
   display: block;
-  font-family: 'Courier New', monospace;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
   font-size: 1rem;
   font-weight: 700;
-  color: #e8f4f8;
+  color: #E8F4F8;
   letter-spacing: 0.08em;
   line-height: 1.2;
 }
@@ -37,7 +37,7 @@
 .brand-sub {
   display: block;
   font-size: 0.68rem;
-  color: #4a6070;
+  color: var(--app-sidebar-text);
   letter-spacing: 0.04em;
 }
 
@@ -56,7 +56,7 @@
   align-items: center;
   gap: 0.65rem;
   padding: 0.75rem 1.4rem;
-  color: #8aa4b8;
+  color: var(--app-sidebar-text);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
@@ -65,22 +65,54 @@
 }
 
 .navbar-links li a:hover {
-  color: #e8f4f8;
-  background: #1a2a3a;
-  border-left-color: #2d6a9f;
+  color: #E8F4F8;
+  background: var(--app-sidebar-hover-bg);
+  border-left-color: #2D6A9F;
 }
 
 .navbar-links li a.active {
-  color: #5bc4f5;
-  background: #1a2a3a;
-  border-left-color: #5bc4f5;
+  color: var(--app-sidebar-active);
+  background: var(--app-sidebar-hover-bg);
+  border-left-color: var(--app-sidebar-active);
 }
 
 .nav-icon { font-size: 1rem; opacity: 0.85; }
 
 .navbar-footer {
-  padding: 1rem 1.2rem;
-  border-top: 1px solid #1e2d3d;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--app-sidebar-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ─── Theme toggle ───────────────────────────────────────── */
+.theme-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  background: transparent;
+  border: 1px solid var(--app-sidebar-border);
+  border-radius: 6px;
+  color: var(--app-sidebar-text);
+  font-size: 0.8rem;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.theme-toggle svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  background: var(--app-sidebar-hover-bg);
+  color: #E8F4F8;
+  border-color: #2D6A9F;
 }
 
 .logout-btn {
@@ -88,18 +120,19 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 0.9rem;
+  padding: 0.55rem 0.9rem;
   background: transparent;
-  border: 1px solid #1e2d3d;
+  border: 1px solid var(--app-sidebar-border);
   border-radius: 6px;
-  color: #4a6070;
+  color: var(--app-sidebar-text);
   font-size: 0.8rem;
+  font-family: 'DM Sans', sans-serif;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .logout-btn:hover {
-  background: #1a2a3a;
-  color: #e8f4f8;
-  border-color: #2d6a9f;
+  background: var(--app-sidebar-hover-bg);
+  color: #E8F4F8;
+  border-color: #2D6A9F;
 }

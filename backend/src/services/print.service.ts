@@ -1,4 +1,4 @@
-import { getDb }  from '../../database/db';
+import { getDb }    from '../../database/db';
 import { AppError } from '../middlewares/error.middleware';
 
 // ─── Types ────────────────────────────────────────────────────
@@ -12,7 +12,10 @@ export interface PrintParams {
 
 export interface EmployeeDtrData {
   employee_id:   string;
-  name:          string;
+  name:          string;        // display name (fallback)
+  surname:       string | null;
+  first_name:    string | null;
+  middle_name:   string | null;
   employee_type: string;
   department:    string;
   records:       DtrRecord[];
@@ -47,6 +50,19 @@ function formatTime(iso: string | null): string {
   return `${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')} ${ampm}`;
 }
 
+// Build PDF header name:
+// If name parts exist → DELA CRUZ, Juan Santos
+// Fallback → whatever is stored in name column
+function buildPdfName(emp: EmployeeDtrData): string {
+  if (emp.surname && emp.first_name) {
+    const last   = emp.surname.trim().toUpperCase();
+    const first  = emp.first_name.trim();
+    const middle = emp.middle_name?.trim();
+    return middle ? `${last}, ${first} ${middle}` : `${last}, ${first}`;
+  }
+  return emp.name.toUpperCase();
+}
+
 // ─── Data Fetching ────────────────────────────────────────────
 
 export async function getEmployeeDtrData(params: PrintParams): Promise<EmployeeDtrData[]> {
@@ -55,7 +71,9 @@ export async function getEmployeeDtrData(params: PrintParams): Promise<EmployeeD
   const placeholders = employee_ids.map(() => '?').join(',');
 
   const records = await db.all(
-    `SELECT d.employee_id, e.name, e.employee_type,
+    `SELECT d.employee_id,
+            e.name, e.surname, e.first_name, e.middle_name,
+            e.employee_type,
             dep.name AS department,
             d.date, d.am_in, d.am_out, d.pm_in, d.pm_out
      FROM   dtr_records  d
@@ -78,12 +96,21 @@ export async function getEmployeeDtrData(params: PrintParams): Promise<EmployeeD
       byEmployee.set(r.employee_id, {
         employee_id:   r.employee_id,
         name:          r.name,
+        surname:       r.surname   ?? null,
+        first_name:    r.first_name ?? null,
+        middle_name:   r.middle_name ?? null,
         employee_type: r.employee_type,
-        department:    r.department,
+        department:    r.department ?? '',
         records:       [],
       });
     }
-    byEmployee.get(r.employee_id)!.records.push(r);
+    byEmployee.get(r.employee_id)!.records.push({
+      date:   r.date,
+      am_in:  r.am_in,
+      am_out: r.am_out,
+      pm_in:  r.pm_in,
+      pm_out: r.pm_out,
+    });
   }
 
   return Array.from(byEmployee.values());
@@ -92,7 +119,8 @@ export async function getEmployeeDtrData(params: PrintParams): Promise<EmployeeD
 // ─── HTML Generation ─────────────────────────────────────────
 
 export function generateDtrHtml(employeeData: EmployeeDtrData, fromDate: string, toDate: string): string {
-  const { name, records } = employeeData;
+  const pdfName = buildPdfName(employeeData);
+  const { records } = employeeData;
 
   const allDates: string[] = [];
   const [sy, sm, sd] = fromDate.split('-').map(Number);
@@ -172,7 +200,7 @@ export function generateDtrHtml(employeeData: EmployeeDtrData, fromDate: string,
   <div class="header">
     <p>Civil Service Form No. 48</p>
     <p><strong>DAILY TIME RECORD</strong></p>
-    <p><strong>${name.toUpperCase()}</strong></p>
+    <p><strong>${pdfName}</strong></p>
     <p>For the Period of ${fromFmt} to ${toFmt}</p>
     <p>Official hours for arrival &nbsp;(Regular Days <span style="border-bottom:1px solid #000; padding: 0 20px;">&nbsp;</span> &nbsp;)</p>
     <p>and departure &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Saturdays <span style="border-bottom:1px solid #000; padding: 0 20px;">&nbsp;</span> &nbsp;)</p>
@@ -253,7 +281,6 @@ export async function generatePdf(htmlPages: string[]): Promise<Buffer> {
     });
     return Buffer.from(pdf);
   } finally {
-    // Always close browser even if PDF generation throws
     await browser.close();
   }
 }

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { HttpClient }          from '@angular/common/http';
+import { Observable }          from 'rxjs';
+import { environment }         from '../../../environments/environment';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -11,6 +11,11 @@ export interface Employee {
   employee_type: string;
   department_id: number | null;
   department:    string | null;
+  // New PDF fields
+  surname:       string | null;
+  first_name:    string | null;
+  middle_name:   string | null;
+  birthday:      string | null;
 }
 
 export interface Department {
@@ -24,9 +29,13 @@ export interface WrappedList<T> {
 }
 
 export interface UpdateEmployeePayload {
+  name?:          string;
   employee_type?: string;
   department_id?: number | null;
-  name?:          string;
+  surname?:       string;
+  first_name?:    string;
+  middle_name?:   string;
+  birthday?:      string;
 }
 
 // ─── Service ──────────────────────────────────────────────────

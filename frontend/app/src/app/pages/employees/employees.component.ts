@@ -1,7 +1,19 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule }  from '@angular/forms';
 import { EmployeeService, Employee, Department } from '../../core/services/employee.service';
+
+// ─── Toast form state ─────────────────────────────────────────
+interface EditForm {
+  empId:        string;
+  surname:      string;
+  first_name:   string;
+  middle_name:  string;
+  birthday:     string;
+  department_id: number | null;
+  employee_type: string;
+  saving:       boolean;
+}
 
 @Component({
   selector: 'app-employees',
@@ -18,13 +30,25 @@ export class EmployeesComponent implements OnInit {
   loading     = signal(true);
   error       = signal('');
 
+  // Department management
   newDeptName = signal('');
   deptSaving  = signal(false);
   deptMsg     = signal('');
   deptError   = signal(false);
 
-  // Local edit state stored separately so Employee interface stays clean
-  editState = signal<Record<string, { type: string; deptId: number | null; saving: boolean }>>({});
+  // Toast/drawer edit form — null means closed
+  editForm = signal<EditForm | null>(null);
+
+  // Search / filter
+  search = signal('');
+
+  filteredEmployees = computed(() => {
+    const q = this.search().toLowerCase().trim();
+    if (!q) return this.employees();
+    return this.employees().filter(e =>
+      e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q)
+    );
+  });
 
   ngOnInit(): void { this.loadAll(); }
 
@@ -33,19 +57,13 @@ export class EmployeesComponent implements OnInit {
     this.error.set('');
 
     this.employeeService.getAll().subscribe({
-      next: (res) => {
-        this.employees.set(res.data);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.error.set('Failed to load employees. Please try again.');
-        this.loading.set(false);
-      }
+      next:  (res) => { this.employees.set(res.data); this.loading.set(false); },
+      error: ()    => { this.error.set('Failed to load employees.'); this.loading.set(false); }
     });
 
     this.employeeService.getAllDepartments().subscribe({
-      next: (res) => this.departments.set(res.data),
-      error: () => {} // non-critical, departments list just stays empty
+      next:  (res) => this.departments.set(res.data),
+      error: ()    => {}
     });
   }
 
@@ -74,7 +92,7 @@ export class EmployeesComponent implements OnInit {
   }
 
   deleteDepartment(id: number, name: string): void {
-    if (!confirm(`Delete department "${name}"? Employees in this department will be unassigned.`)) return;
+    if (!confirm(`Delete "${name}"? Employees will be unassigned.`)) return;
 
     this.employeeService.deleteDepartment(id).subscribe({
       next: () => {
@@ -90,71 +108,87 @@ export class EmployeesComponent implements OnInit {
     });
   }
 
-  // ─── Employee editing ─────────────────────────────────────
+  // ─── Toast form ───────────────────────────────────────────
 
-  isEditing(empId: string): boolean { return !!this.editState()[empId]; }
-  isSaving(empId: string):  boolean { return !!this.editState()[empId]?.saving; }
-
-  startEdit(emp: Employee): void {
-    this.editState.update(s => ({
-      ...s,
-      [emp.id]: { type: emp.employee_type, deptId: emp.department_id, saving: false }
-    }));
-  }
-
-  cancelEdit(empId: string): void {
-    this.editState.update(s => {
-      const next = { ...s };
-      delete next[empId];
-      return next;
+  openEdit(emp: Employee): void {
+    this.editForm.set({
+      empId:         emp.id,
+      surname:       emp.surname    ?? '',
+      first_name:    emp.first_name ?? '',
+      middle_name:   emp.middle_name ?? '',
+      birthday:      emp.birthday   ?? '',
+      department_id: emp.department_id,
+      employee_type: emp.employee_type,
+      saving:        false,
     });
   }
 
-  saveEdit(emp: Employee): void {
-    const state = this.editState()[emp.id];
-    if (!state) return;
+  closeEdit(): void { this.editForm.set(null); }
 
-    this.editState.update(s => ({ ...s, [emp.id]: { ...s[emp.id], saving: true } }));
+  saveEdit(): void {
+    const form = this.editForm();
+    if (!form || form.saving) return;
 
-    this.employeeService.update(emp.id, {
-      employee_type: state.type,
-      department_id: state.deptId ?? null,
+    if (!form.surname.trim() || !form.first_name.trim()) {
+      return; // buttons disabled, but guard anyway
+    }
+
+    this.editForm.update(f => f ? { ...f, saving: true } : null);
+
+    this.employeeService.update(form.empId, {
+      surname:       form.surname.trim(),
+      first_name:    form.first_name.trim(),
+      middle_name:   form.middle_name.trim() || undefined,
+      birthday:      form.birthday || undefined,
+      department_id: form.department_id,
+      employee_type: form.employee_type,
     }).subscribe({
       next: () => {
-        const dept = this.departments().find(d => d.id === state.deptId) ?? null;
+        // Derive display name locally to match backend logic
+        const last  = form.surname.trim().toUpperCase();
+        const first = form.first_name.trim();
+        const mi    = form.middle_name.trim();
+        const middle = mi ? ` ${mi.charAt(0).toUpperCase()}.` : '';
+        const displayName = `${last}, ${first}${middle}`;
+
+        const dept = this.departments().find(d => d.id === form.department_id) ?? null;
+
         this.employees.update(emps => emps.map(e =>
-          e.id === emp.id ? {
+          e.id === form.empId ? {
             ...e,
-            employee_type: state.type,
-            department_id: state.deptId ?? null,
+            name:          displayName,
+            surname:       form.surname.trim(),
+            first_name:    form.first_name.trim(),
+            middle_name:   form.middle_name.trim() || null,
+            birthday:      form.birthday || null,
+            employee_type: form.employee_type,
+            department_id: form.department_id,
             department:    dept?.name ?? null,
           } : e
         ));
-        this.cancelEdit(emp.id);
+
+        this.closeEdit();
       },
       error: (err) => {
-        this.editState.update(s => ({ ...s, [emp.id]: { ...s[emp.id], saving: false } }));
-        this.deptMsg.set(err.error?.message ?? 'Failed to save changes.');
-        this.deptError.set(true);
+        this.editForm.update(f => f ? { ...f, saving: false } : null);
+        this.error.set(err.error?.message ?? 'Failed to save changes.');
       }
     });
   }
 
-  getEditType(empId: string):   string       { return this.editState()[empId]?.type ?? ''; }
-  getEditDeptId(empId: string): number | null { return this.editState()[empId]?.deptId ?? null; }
+  // ─── Form field helpers ───────────────────────────────────
 
-  onTypeChange(empId: string, e: Event): void {
-    const val = (e.target as HTMLSelectElement).value;
-    this.editState.update(s => ({ ...s, [empId]: { ...s[empId], type: val } }));
+  setField(field: keyof EditForm, value: string | number | null): void {
+    this.editForm.update(f => f ? { ...f, [field]: value } : null);
   }
 
-  onDeptChange(empId: string, e: Event): void {
-    const val = (e.target as HTMLSelectElement).value;
-    this.editState.update(s => ({ ...s, [empId]: { ...s[empId], deptId: val ? Number(val) : null } }));
+  isFormValid(): boolean {
+    const f = this.editForm();
+    return !!f && f.surname.trim().length > 0 && f.first_name.trim().length > 0;
   }
 
-  onNewDeptChange(e: Event): void {
-    this.newDeptName.set((e.target as HTMLInputElement).value);
+  onSearchChange(e: Event): void {
+    this.search.set((e.target as HTMLInputElement).value);
   }
 
   onDeptKeyDown(e: KeyboardEvent): void {

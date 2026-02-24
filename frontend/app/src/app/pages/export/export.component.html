@@ -2,132 +2,158 @@
 <div class="page">
 
   <div class="page-header">
-    <div>
-      <h1 class="page-title">Export DTR</h1>
-      <p class="page-sub">Select employees and generate printable DTR reports</p>
+    <div class="header-left">
+      <div class="page-eyebrow">DTR GENERATION</div>
+      <h1 class="page-title">Print DTR</h1>
+      <p class="page-sub">Generate CSC Form No. 48 as PDF for selected employees</p>
     </div>
+    @if (selectedEmployees().size > 0) {
+      <div class="selection-pill">
+        <span class="pill-num">{{ selectedEmployees().size }}</span>
+        <span class="pill-label">{{ selectedEmployees().size === 1 ? 'employee' : 'employees' }} selected</span>
+      </div>
+    }
   </div>
 
-  <!-- ─── Inline error (replaces alert()) ──────────────── -->
   @if (error()) {
-    <div class="error-msg">{{ error() }}</div>
+    <div class="inline-error">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 6h1.5v1.5h-1.5V10.5z"/></svg>
+      {{ error() }}
+    </div>
   }
 
-  <!-- Filters -->
-  <div class="filters-card">
-    <div class="filter-row">
-      <!-- Employee Type Toggle -->
-      <div class="filter-group">
-        <label>EMPLOYEE TYPE</label>
-        <button
-          class="btn-toggle"
-          [class.active]="employeeType() === 'permanent'"
-          (click)="toggleEmployeeType()"
-        >
-          <span class="toggle-label">{{ employeeType() === 'permanent' ? 'Regular' : 'COS' }}</span>
-        </button>
-      </div>
+  <!-- ─── Controls Row ──────────────────────────────────── -->
+  <div class="controls-panel">
 
-      <!-- Department Filter Toggle -->
-      <div class="filter-group">
-        <label>FILTER BY DEPARTMENT</label>
-        <button
-          class="btn-toggle"
-          [class.active]="filterByDepartment()"
-          (click)="toggleDepartmentFilter()"
-        >
-          <span class="toggle-label">{{ filterByDepartment() ? 'ON' : 'OFF' }}</span>
-        </button>
-      </div>
-
-      <!-- Department Dropdown (shown when filter is ON) -->
-      @if (filterByDepartment()) {
-        <div class="filter-group">
-          <label>DEPARTMENT</label>
-          <select [value]="selectedDepartment() || ''" (change)="onDepartmentChange($event)">
-            <option value="">All Departments</option>
-            @for (dept of departments(); track dept.id) {
-              <option [value]="dept.id">{{ dept.name }}</option>
-            }
-          </select>
+    <div class="controls-left">
+      <!-- Type Toggle -->
+      <div class="control-group">
+        <span class="control-label">TYPE</span>
+        <div class="segmented">
+          <button
+            class="seg-btn"
+            [class.active]="employeeType() === 'permanent'"
+            (click)="employeeType.set('permanent'); clearSelection()"
+          >Regular</button>
+          <button
+            class="seg-btn"
+            [class.active]="employeeType() === 'cos'"
+            (click)="employeeType.set('cos'); clearSelection()"
+          >COS</button>
         </div>
-      }
+      </div>
+
+      <!-- Date Range -->
+      <div class="control-group">
+        <span class="control-label">FROM</span>
+        <input class="date-input" type="date" [value]="fromDate()" (change)="onFromDateChange($event)" />
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">TO</span>
+        <input class="date-input" type="date" [value]="toDate()" (change)="onToDateChange($event)" />
+      </div>
+
+      <!-- Department Filter -->
+      <div class="control-group">
+        <span class="control-label">DEPT</span>
+        <select class="dept-select" [value]="selectedDepartment() || ''" (change)="onDepartmentChange($event)">
+          <option value="">All departments</option>
+          @for (dept of departments(); track dept.id) {
+            <option [value]="dept.id">{{ dept.name }}</option>
+          }
+        </select>
+      </div>
     </div>
 
-    <!-- Date Range -->
-    <div class="filter-row">
-      <div class="filter-group">
-        <label>FROM</label>
-        <input type="date" [value]="fromDate()" (change)="onFromDateChange($event)" />
-      </div>
-      <div class="filter-group">
-        <label>TO</label>
-        <input type="date" [value]="toDate()" (change)="onToDateChange($event)" />
-      </div>
+    <div class="controls-right">
+      <button class="btn-ghost" (click)="selectAll()" [disabled]="filtered().length === 0">
+        Select all ({{ filtered().length }})
+      </button>
+      <button class="btn-ghost" (click)="clearSelection()" [disabled]="selectedEmployees().size === 0">
+        Clear
+      </button>
     </div>
 
-    <!-- Selection Actions -->
-    <div class="actions">
-      <button class="btn-action" (click)="selectAll()">
-        ✓ Select All ({{ filtered().length }})
-      </button>
-      <button class="btn-action" (click)="clearSelection()">
-        ✕ Clear Selection
-      </button>
-      <span class="selection-count">{{ selectedEmployees().size }} selected</span>
-    </div>
   </div>
 
-  <!-- Employee List -->
+  <!-- ─── Employee Grid ─────────────────────────────────── -->
   @if (loading()) {
-    <div class="loading">Loading employees...</div>
+    <div class="state-placeholder">
+      <div class="placeholder-spinner"></div>
+      <span>Loading employees...</span>
+    </div>
   } @else if (filtered().length === 0) {
-    <div class="empty">No employees found matching the filters.</div>
+    <div class="state-placeholder">
+      <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>No employees match the current filters.</span>
+    </div>
   } @else {
-    <div class="employee-list">
+    <div class="dept-sections">
       @for (group of grouped(); track group[0]) {
-        <div class="dept-group">
-          <h3 class="dept-header">{{ group[0] }} <span class="dept-count">({{ group[1].length }})</span></h3>
+        <div class="dept-section">
+
+          <div class="dept-title-row">
+            <span class="dept-name">{{ group[0] }}</span>
+            <span class="dept-count">{{ group[1].length }}</span>
+          </div>
+
           <div class="emp-grid">
             @for (emp of group[1]; track emp.id) {
-              <div
+              <button
                 class="emp-card"
-                [class.selected]="isSelected(emp.id)"
-                [class.focused]="focusedEmployee() === emp.id"
-                tabindex="0"
-                (focus)="onEmployeeFocus(emp.id)"
-                (blur)="onEmployeeBlur()"
+                [class.is-selected]="isSelected(emp.id)"
                 (click)="toggleEmployee(emp.id)"
               >
-                <div class="emp-checkbox">
+                <div class="emp-check">
                   @if (isSelected(emp.id)) {
-                    <span class="check">✓</span>
+                    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="M2 6l3 3 5-5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                   }
                 </div>
-                <div class="emp-info">
+                <div class="emp-details">
                   <div class="emp-name">{{ emp.name }}</div>
-                  <div class="emp-id">ID: {{ emp.id }}</div>
+                  <div class="emp-id">{{ emp.id }}</div>
                 </div>
-                @if (focusedEmployee() === emp.id) {
-                  <div class="focus-ring"></div>
-                }
-              </div>
+              </button>
             }
           </div>
+
         </div>
       }
     </div>
   }
 
-  <!-- Print Button (Fixed Bottom) -->
-  <div class="print-bar">
-    <button
-      class="btn-print"
-      (click)="print()"
-      [disabled]="printing() || selectedEmployees().size === 0 || !fromDate() || !toDate()"
-    >
-      {{ printing() ? '🖨 Generating PDF...' : '🖨 Print Selected (' + selectedEmployees().size + ')' }}
-    </button>
+  <!-- ─── Print Bar ─────────────────────────────────────── -->
+  <div class="print-bar" [class.bar-visible]="selectedEmployees().size > 0">
+    <div class="bar-inner">
+      <div class="bar-info">
+        <span class="bar-count">{{ selectedEmployees().size }} employee{{ selectedEmployees().size !== 1 ? 's' : '' }}</span>
+        @if (fromDate() && toDate()) {
+          <span class="bar-range">{{ fromDate() }} → {{ toDate() }}</span>
+        } @else {
+          <span class="bar-warn">Set a date range to continue</span>
+        }
+      </div>
+      <button
+        class="btn-print"
+        (click)="print()"
+        [disabled]="printing() || selectedEmployees().size === 0 || !fromDate() || !toDate()"
+      >
+        @if (printing()) {
+          <div class="print-spinner"></div>
+          Generating PDF...
+        } @else {
+          <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+            <path d="M4 2h8a1 1 0 011 1v2H3V3a1 1 0 011-1zM2 6h12a1 1 0 011 1v5a1 1 0 01-1 1h-1v-3H4v3H3a1 1 0 01-1-1V7a1 1 0 011-1zm2 5h8v3H4v-3z"/>
+          </svg>
+          Print DTR Report
+        }
+      </button>
+    </div>
   </div>
 
 </div>

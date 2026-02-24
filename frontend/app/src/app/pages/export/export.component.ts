@@ -20,17 +20,16 @@ export class ExportComponent implements OnInit, OnDestroy {
   departments = signal<Department[]>([]);
   loading     = signal(true);
   printing    = signal(false);
-  error       = signal('');   // replaces alert()
+  error       = signal('');
 
-  // Filters
+  // Filters — public so template can set directly
   employeeType       = signal<string>('permanent');
-  filterByDepartment = signal(false);
   selectedDepartment = signal<number | null>(null);
 
   // Selection
   selectedEmployees = signal<Set<string>>(new Set());
   focusedEmployee   = signal<string | null>(null);
-  private focusTimer: ReturnType<typeof setTimeout> | null = null;  // properly typed
+  private focusTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Date range
   fromDate = signal('');
@@ -39,7 +38,7 @@ export class ExportComponent implements OnInit, OnDestroy {
   filtered = computed(() => {
     let data = this.employees().filter(e => e.employee_type === this.employeeType());
 
-    if (this.filterByDepartment() && this.selectedDepartment()) {
+    if (this.selectedDepartment()) {
       const deptName = this.departments().find(d => d.id === this.selectedDepartment())?.name;
       data = data.filter(e => e.department === deptName);
     }
@@ -65,7 +64,6 @@ export class ExportComponent implements OnInit, OnDestroy {
   ngOnInit(): void { this.loadData(); }
 
   ngOnDestroy(): void {
-    // Prevent timer firing on destroyed component
     if (this.focusTimer) clearTimeout(this.focusTimer);
   }
 
@@ -84,17 +82,6 @@ export class ExportComponent implements OnInit, OnDestroy {
     } finally {
       this.loading.set(false);
     }
-  }
-
-  toggleEmployeeType(): void {
-    this.employeeType.set(this.employeeType() === 'permanent' ? 'casual' : 'permanent');
-    this.clearSelection();
-  }
-
-  toggleDepartmentFilter(): void {
-    this.filterByDepartment.set(!this.filterByDepartment());
-    if (!this.filterByDepartment()) this.selectedDepartment.set(null);
-    this.clearSelection();
   }
 
   onDepartmentChange(e: Event): void {

@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, Router } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
+import { AuthService }  from '../../core/services/auth.service';
+import { ThemeService } from '../../core/services/theme.service';
 
 @Component({
   selector: 'app-navbar',
@@ -12,10 +13,9 @@ import { AuthService } from '../../core/services/auth.service';
 export class NavbarComponent {
   private auth   = inject(AuthService);
   private router = inject(Router);
+  theme          = inject(ThemeService);
 
   logout(): void {
-    this.auth.logout().subscribe(() => {
-      this.router.navigate(['/login']);
-    });
+    this.auth.logout().subscribe(() => this.router.navigate(['/login']));
   }
 }

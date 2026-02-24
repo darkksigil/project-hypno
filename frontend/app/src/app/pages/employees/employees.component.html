@@ -1,27 +1,48 @@
 <!-- src/app/pages/employees/employees.component.html -->
 <div class="page">
 
-  <!-- ─── Departments Section ─────────────────────────── -->
-  <div class="section-header">
-    <h1 class="page-title">Employees</h1>
-    <p class="page-sub">{{ employees().length }} registered employees</p>
+  <!-- ─── Header ──────────────────────────────────────────── -->
+  <div class="page-header">
+    <div>
+      <div class="page-eyebrow">REGISTRY</div>
+      <h1 class="page-title">Employees</h1>
+      <p class="page-sub">{{ employees().length }} registered employees</p>
+    </div>
+    <div class="header-search">
+      <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="6.5" cy="6.5" r="4.5"/><path d="M10.5 10.5l3 3" stroke-linecap="round"/>
+      </svg>
+      <input
+        class="search-input"
+        type="text"
+        placeholder="Search name or ID..."
+        [value]="search()"
+        (input)="onSearchChange($event)"
+      />
+    </div>
   </div>
 
   @if (error()) {
-    <div class="error-msg">{{ error() }}</div>
+    <div class="inline-error">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 6h1.5v1.5h-1.5V10.5z"/></svg>
+      {{ error() }}
+    </div>
   }
 
+  <!-- ─── Department Panel ──────────────────────────────── -->
   <div class="dept-panel">
-    <div class="dept-panel-header">
-      <span class="dept-label">🏢 Departments</span>
-      <span class="dept-count">{{ departments().length }}</span>
+    <div class="dept-panel-head">
+      <span class="dept-panel-title">Departments</span>
+      <span class="dept-panel-count">{{ departments().length }}</span>
     </div>
 
-    <div class="dept-list">
+    <div class="dept-chips">
       @for (dept of departments(); track dept.id) {
         <div class="dept-chip">
-          <span>{{ dept.name }}</span>
-          <button class="dept-delete" (click)="deleteDepartment(dept.id, dept.name)" title="Delete">×</button>
+          {{ dept.name }}
+          <button class="chip-del" (click)="deleteDepartment(dept.id, dept.name)" title="Delete">
+            <svg viewBox="0 0 10 10" fill="currentColor"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
         </div>
       }
       @if (departments().length === 0) {
@@ -29,12 +50,14 @@
       }
     </div>
 
-    <div class="dept-add">
+    <div class="dept-add-row">
       <input
+        class="dept-input"
         type="text"
         placeholder="New department name..."
         [value]="newDeptName()"
-        (input)="onNewDeptChange($event)"
+        (input)="$any($event.target).value; setField('first_name', $any($event.target).value)"
+        (input)="newDeptName.set($any($event.target).value)"
         (keydown)="onDeptKeyDown($event)"
       />
       <button class="btn-add-dept" (click)="addDepartment()" [disabled]="deptSaving() || !newDeptName().trim()">
@@ -47,70 +70,199 @@
     }
   </div>
 
-  <!-- ─── Employees Table ──────────────────────────────── -->
+  <!-- ─── Employees Table ───────────────────────────────── -->
   @if (loading()) {
-    <div class="loading">Loading employees...</div>
-  } @else if (employees().length === 0) {
-    <div class="empty">No employees found. Upload a CSV to register employees automatically.</div>
+    <div class="state-placeholder">
+      <div class="placeholder-spinner"></div>
+      <span>Loading employees...</span>
+    </div>
+  } @else if (filteredEmployees().length === 0) {
+    <div class="state-placeholder">
+      <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8z" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>{{ search() ? 'No employees match "' + search() + '"' : 'No employees found. Upload a CSV to register employees.' }}</span>
+    </div>
   } @else {
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>#</th>
+            <th class="col-num">#</th>
             <th>EMPLOYEE</th>
             <th>DEPARTMENT</th>
             <th>TYPE</th>
-            <th>ACTIONS</th>
+            <th>BIRTHDAY</th>
+            <th>PDF READY</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
-          @for (emp of employees(); track emp.id; let i = $index) {
+          @for (emp of filteredEmployees(); track emp.id; let i = $index) {
             <tr>
-              <td class="row-num">{{ i + 1 }}</td>
+              <td class="col-num cell-muted">{{ i + 1 }}</td>
               <td>
                 <div class="emp-name">{{ emp.name }}</div>
-                <div class="emp-id">ID: {{ emp.id }}</div>
+                <div class="emp-id">{{ emp.id }}</div>
               </td>
-
-              @if (isEditing(emp.id)) {
-                <td>
-                  <select class="inline-select" [value]="getEditDeptId(emp.id) ?? ''" (change)="onDeptChange(emp.id, $event)">
-                    <option value="">— Unassigned —</option>
-                    @for (dept of departments(); track dept.id) {
-                      <option [value]="dept.id">{{ dept.name }}</option>
-                    }
-                  </select>
-                </td>
-                <td>
-                  <select class="inline-select" [value]="getEditType(emp.id)" (change)="onTypeChange(emp.id, $event)">
-                    <option value="permanent">Permanent</option>
-                    <option value="cos">COS</option>
-                  </select>
-                </td>
-                <td class="td-actions">
-                  <button class="btn-save" (click)="saveEdit(emp)" [disabled]="isSaving(emp.id)">
-                    {{ isSaving(emp.id) ? 'Saving...' : '✓ Save' }}
-                  </button>
-                  <button class="btn-cancel" (click)="cancelEdit(emp.id)">Cancel</button>
-                </td>
-              } @else {
-                <td>
-                  <span class="dept-badge">{{ emp.department ?? '—' }}</span>
-                </td>
-                <td>
-                  <span class="type-badge" [class.type-cos]="emp.employee_type === 'cos'">
-                    {{ emp.employee_type === 'cos' ? 'COS' : 'Permanent' }}
+              <td>
+                @if (emp.department) {
+                  <span class="dept-badge">{{ emp.department }}</span>
+                } @else {
+                  <span class="cell-muted">—</span>
+                }
+              </td>
+              <td>
+                <span class="type-badge" [class.type-cos]="emp.employee_type === 'cos'">
+                  {{ emp.employee_type === 'cos' ? 'COS' : 'Permanent' }}
+                </span>
+              </td>
+              <td>
+                @if (emp.birthday) {
+                  <span class="cell-date">{{ emp.birthday }}</span>
+                } @else {
+                  <span class="cell-muted">—</span>
+                }
+              </td>
+              <td>
+                @if (emp.surname && emp.first_name) {
+                  <span class="ready-badge">
+                    <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 5l2.5 2.5L8 3"/></svg>
+                    Ready
                   </span>
-                </td>
-                <td class="td-actions">
-                  <button class="btn-edit" (click)="startEdit(emp)">✎ Edit</button>
-                </td>
-              }
+                } @else {
+                  <span class="missing-badge">Incomplete</span>
+                }
+              </td>
+              <td class="col-action">
+                <button class="btn-edit" (click)="openEdit(emp)">Edit</button>
+              </td>
             </tr>
           }
         </tbody>
       </table>
     </div>
   }
+
 </div>
+
+<!-- ─── Edit Toast / Drawer ───────────────────────────────── -->
+@if (editForm()) {
+  <div class="modal-backdrop" (click)="closeEdit()"></div>
+
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div>
+        <div class="modal-eyebrow">EMPLOYEE DETAILS</div>
+        <div class="modal-title">{{ editForm()!.empId }}</div>
+      </div>
+      <button class="modal-close" (click)="closeEdit()">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M2 2l10 10M12 2L2 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- Name Fields -->
+      <div class="form-section">
+        <div class="form-section-label">FULL NAME (for CSC Form 48)</div>
+        <div class="form-row-3">
+          <div class="form-field">
+            <label>SURNAME <span class="req">*</span></label>
+            <input
+              type="text"
+              placeholder="e.g. DELA CRUZ"
+              [value]="editForm()!.surname"
+              (input)="setField('surname', $any($event.target).value)"
+            />
+          </div>
+          <div class="form-field">
+            <label>FIRST NAME <span class="req">*</span></label>
+            <input
+              type="text"
+              placeholder="e.g. Juan"
+              [value]="editForm()!.first_name"
+              (input)="setField('first_name', $any($event.target).value)"
+            />
+          </div>
+          <div class="form-field">
+            <label>MIDDLE NAME</label>
+            <input
+              type="text"
+              placeholder="e.g. Santos (optional)"
+              [value]="editForm()!.middle_name"
+              (input)="setField('middle_name', $any($event.target).value)"
+            />
+          </div>
+        </div>
+
+        @if (editForm()!.surname && editForm()!.first_name) {
+          <div class="name-preview">
+            <span class="name-preview-label">Preview:</span>
+            <span class="name-preview-value">
+              {{ editForm()!.surname.trim().toUpperCase() }}, {{ editForm()!.first_name.trim() }}{{ editForm()!.middle_name.trim() ? ' ' + editForm()!.middle_name.trim().charAt(0).toUpperCase() + '.' : '' }}
+            </span>
+          </div>
+        }
+      </div>
+
+      <!-- Birthday -->
+      <div class="form-section">
+        <div class="form-section-label">PERSONAL INFO</div>
+        <div class="form-row-2">
+          <div class="form-field">
+            <label>BIRTHDAY</label>
+            <input
+              type="date"
+              [value]="editForm()!.birthday"
+              (change)="setField('birthday', $any($event.target).value)"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Assignment -->
+      <div class="form-section">
+        <div class="form-section-label">ASSIGNMENT</div>
+        <div class="form-row-2">
+          <div class="form-field">
+            <label>DEPARTMENT</label>
+            <select
+              [value]="editForm()!.department_id ?? ''"
+              (change)="setField('department_id', $any($event.target).value ? +$any($event.target).value : null)"
+            >
+              <option value="">— Unassigned —</option>
+              @for (dept of departments(); track dept.id) {
+                <option [value]="dept.id">{{ dept.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-field">
+            <label>EMPLOYEE TYPE</label>
+            <select
+              [value]="editForm()!.employee_type"
+              (change)="setField('employee_type', $any($event.target).value)"
+            >
+              <option value="permanent">Permanent</option>
+              <option value="cos">COS</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-ghost" (click)="closeEdit()" [disabled]="editForm()!.saving">Cancel</button>
+      <button class="btn-primary" (click)="saveEdit()" [disabled]="editForm()!.saving || !isFormValid()">
+        @if (editForm()!.saving) {
+          <div class="btn-spinner"></div> Saving...
+        } @else {
+          Save Changes
+        }
+      </button>
+    </div>
+  </div>
+}

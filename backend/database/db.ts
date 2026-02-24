@@ -77,6 +77,23 @@ export async function initDb(): Promise<void> {
     logger.info('✅ Migration: added employee_type to employees');
   }
 
+  if (!empColNames.includes('surname')) {
+    await dbInstance.run(`ALTER TABLE employees ADD COLUMN surname TEXT`);
+    logger.info('✅ Migration: added surname to employees');
+  }
+  if (!empColNames.includes('first_name')) {
+    await dbInstance.run(`ALTER TABLE employees ADD COLUMN first_name TEXT`);
+    logger.info('✅ Migration: added first_name to employees');
+  }
+  if (!empColNames.includes('middle_name')) {
+    await dbInstance.run(`ALTER TABLE employees ADD COLUMN middle_name TEXT`);
+    logger.info('✅ Migration: added middle_name to employees');
+  }
+  if (!empColNames.includes('birthday')) {
+    await dbInstance.run(`ALTER TABLE employees ADD COLUMN birthday TEXT`);
+    logger.info('✅ Migration: added birthday to employees');
+  }
+
   const punchCols: { name: string }[] = await dbInstance.all(`PRAGMA table_info(punch_logs)`);
   const punchColNames = punchCols.map((c) => c.name);
   if (!punchColNames.includes('filtered')) {

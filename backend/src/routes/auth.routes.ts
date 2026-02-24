@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { z } from 'zod';
-import { timingSafeEqual } from 'crypto';
-import { asyncHandler, AppError } from '../middlewares/error.middleware';
+import { z }                         from 'zod';
+import { timingSafeEqual, createHash } from 'crypto';
+import { asyncHandler, AppError }    from '../middlewares/error.middleware';
 
 const router = Router();
 
@@ -10,15 +10,24 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+// Hash both sides to equal-length buffers before comparing.
+// timingSafeEqual requires identical buffer lengths — comparing raw
+// strings would throw a RangeError whenever lengths differ.
+function safeCompare(a: string, b: string): boolean {
+  const hashA = createHash('sha256').update(a).digest();
+  const hashB = createHash('sha256').update(b).digest();
+  return timingSafeEqual(hashA, hashB);
+}
+
 // POST /auth/login
 router.post('/login', asyncHandler(async (req: Request, res: Response) => {
   const { username, password } = loginSchema.parse(req.body);
 
-  const validUser = process.env.ADMIN_USER;
-  const validPass = process.env.ADMIN_PASS;
+  const validUser = process.env.ADMIN_USER ?? '';
+  const validPass = process.env.ADMIN_PASS ?? '';
 
-  const usernameMatch = timingSafeEqual(Buffer.from(username), Buffer.from(validUser ?? ''));
-  const passwordMatch = timingSafeEqual(Buffer.from(password), Buffer.from(validPass ?? ''));
+  const usernameMatch = safeCompare(username, validUser);
+  const passwordMatch = safeCompare(password, validPass);
 
   if (usernameMatch && passwordMatch) {
     (req.session as any).authenticated = true;

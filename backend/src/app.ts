@@ -3,6 +3,8 @@ import cors    from 'cors';
 import helmet  from 'helmet';
 import morgan  from 'morgan';
 import session from 'express-session';
+import BetterSqlite3  from 'better-sqlite3';
+import SqliteStore    from 'better-sqlite3-session-store';
 
 import { getDb }        from '../database/db';
 import { requireAuth }  from './middlewares/auth.middleware';
@@ -28,11 +30,26 @@ app.use(express.json({ limit: '1mb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use('/api', apiLimiter);
 
+// ─── Session Store (SQLite-backed — no memory leak) ──────────
+const SqliteSession = SqliteStore(session);
+const sessionDb     = new BetterSqlite3('./database/sessions.sqlite');
+
 app.use(session({
+  store: new SqliteSession({
+    client: sessionDb,
+    expired: {
+      clear:       true,
+      intervalMs:  900_000, // clean up expired sessions every 15 minutes
+    },
+  }),
   secret:            process.env.SESSION_SECRET ?? 'test-secret-not-for-production',
   resave:            false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, maxAge: 8 * 60 * 60 * 1000 },
+  cookie: {
+    httpOnly: true,
+    secure:   process.env.NODE_ENV === 'production', // HTTPS only in prod
+    maxAge:   8 * 60 * 60 * 1000,                   // 8 hours
+  },
 }));
 
 // ─── Public Routes ───────────────────────────────────────────

@@ -1,107 +1,148 @@
 <!-- src/app/pages/upload/upload.component.html -->
 <div class="page">
-  
+
   <div class="page-header">
-    <h1 class="page-title">Upload CSV</h1>
-    <p class="page-sub">Import punch logs from biometric device export</p>
+    <div class="header-left">
+      <div class="page-eyebrow">CSV IMPORT</div>
+      <h1 class="page-title">Upload Punch Logs</h1>
+      <p class="page-sub">Import attendance records from biometric device export</p>
+    </div>
+    <div class="header-badge">
+      <span class="badge-step">{{ showPreview() ? 'STEP 2 OF 2' : 'STEP 1 OF 2' }}</span>
+      <span class="badge-label">{{ showPreview() ? 'Review & Confirm' : 'Select File' }}</span>
+    </div>
+  </div>
+
+  <div class="progress-track">
+    <div class="progress-fill" [class.half]="!showPreview()" [class.full]="showPreview()"></div>
   </div>
 
   @if (!showPreview()) {
-    <!-- Step 1: File Selection with Drag & Drop -->
-    <div class="upload-card">
-      <div 
-        class="upload-zone" 
-        [class.dragging]="dragOver()"
+    <!-- ─── Step 1: Drop Zone ──────────────────────────────── -->
+    <div class="step-panel">
+
+      <div
+        class="drop-zone"
+        [class.drag-active]="dragOver()"
         (click)="fileInput.click()"
         (dragover)="onDragOver($event)"
         (dragleave)="onDragLeave($event)"
         (drop)="onDrop($event)"
       >
-        <div class="upload-icon">
-          {{ dragOver() ? '📥' : '📁' }}
+        <input #fileInput type="file" accept=".csv" (change)="onFileSelect($event)" class="hidden-input" />
+
+        <div class="drop-inner">
+          <div class="drop-icon-wrap" [class.active]="dragOver()">
+            <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12M8 8l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="drop-text">
+            <span class="drop-primary">{{ dragOver() ? 'Release to parse' : 'Drop CSV file here' }}</span>
+            <span class="drop-secondary">or <span class="drop-link">browse files</span></span>
+          </div>
+          <div class="drop-formats">
+            <span class="format-tag">employee_id</span>
+            <span class="format-sep">·</span>
+            <span class="format-tag">name</span>
+            <span class="format-sep">·</span>
+            <span class="format-tag">timestamp</span>
+          </div>
         </div>
-        <p class="upload-label">
-          {{ dragOver() ? 'Drop CSV file here' : 'Click or drag CSV file to upload' }}
-        </p>
-        <p class="upload-hint">Supports employee_id, name, timestamp format</p>
-        
-        <input 
-          #fileInput
-          type="file" 
-          accept=".csv" 
-          (change)="onFileSelect($event)" 
-          class="file-input"
-        />
       </div>
 
       @if (uploading()) {
-        <div class="loading-bar">
-          <div class="loading-spinner"></div>
-          <span>Parsing CSV file...</span>
+        <div class="status-row">
+          <div class="spinner"></div>
+          <span class="status-text">Parsing records...</span>
         </div>
       }
 
       @if (error()) {
-        <div class="alert alert-error">{{ error() }}</div>
+        <div class="inline-error">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 6h1.5v1.5h-1.5V10.5z"/></svg>
+          {{ error() }}
+        </div>
       }
 
       @if (success() && !showPreview()) {
-        <div class="alert alert-success">{{ success() }}</div>
+        <div class="inline-success">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.03 5.03l-3.75 3.75a.75.75 0 01-1.06 0L4.97 8.56a.75.75 0 011.06-1.06L6.75 8.22l3.22-3.22a.75.75 0 011.06 1.03z"/></svg>
+          {{ success() }}
+        </div>
       }
+
+      <div class="format-hint">
+        <div class="hint-title">ACCEPTED FORMATS</div>
+        <div class="hint-body">
+          <div class="hint-row"><span class="hint-label">Format A</span><code>employee_id, name, punched_at</code></div>
+          <div class="hint-row"><span class="hint-label">Format B</span><code>No.,Enroll No.,Name,Time</code></div>
+        </div>
+      </div>
+
     </div>
   }
 
   @if (showPreview()) {
-    <!-- Step 2: Preview & Confirm -->
-    <div class="preview-card">
+    <!-- ─── Step 2: Preview ────────────────────────────────── -->
+    <div class="step-panel">
+
       <div class="preview-header">
-        <div>
-          <h2 class="preview-title">Preview Parsed Data</h2>
-          <p class="preview-sub">{{ previewData().length }} punch records ready to upload</p>
+        <div class="preview-meta">
+          <div class="preview-count">
+            <span class="count-num">{{ previewData().length }}</span>
+            <span class="count-label">punch records parsed</span>
+          </div>
         </div>
-        <div class="preview-actions">
-          <button class="btn-cancel" (click)="cancelPreview()">✕ Cancel</button>
-          <button 
-            class="btn-confirm" 
-            (click)="confirmUpload()" 
-            [disabled]="confirming()"
-          >
-            {{ confirming() ? '⏳ Uploading...' : '✓ Confirm & Upload' }}
+        <div class="preview-controls">
+          <button class="btn-ghost" (click)="cancelPreview()">Cancel</button>
+          <button class="btn-primary" (click)="confirmUpload()" [disabled]="confirming()">
+            @if (confirming()) {
+              <div class="btn-spinner"></div> Uploading...
+            } @else {
+              Confirm & Upload
+            }
           </button>
         </div>
       </div>
 
       @if (error()) {
-        <div class="alert alert-error">{{ error() }}</div>
+        <div class="inline-error">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.5h1.5v4.5h-1.5V4.5zm0 6h1.5v1.5h-1.5V10.5z"/></svg>
+          {{ error() }}
+        </div>
       }
 
-      @if (success()) {
-        <div class="alert alert-success">{{ success() }}</div>
+      @if (success() && showPreview()) {
+        <div class="inline-success">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.03 5.03l-3.75 3.75a.75.75 0 01-1.06 0L4.97 8.56a.75.75 0 011.06-1.06L6.75 8.22l3.22-3.22a.75.75 0 011.06 1.03z"/></svg>
+          {{ success() }}
+        </div>
       }
 
-      <!-- Preview Table -->
-      <div class="table-wrap">
-        <table class="preview-table">
+      <div class="data-table-wrap">
+        <table class="data-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Employee ID</th>
-              <th>Name</th>
-              <th>Punched At</th>
+              <th class="col-num">#</th>
+              <th class="col-id">EMPLOYEE ID</th>
+              <th class="col-name">NAME</th>
+              <th class="col-time">PUNCHED AT</th>
             </tr>
           </thead>
           <tbody>
             @for (punch of previewData(); track $index) {
               <tr>
-                <td class="td-num">{{ $index + 1 }}</td>
-                <td class="td-id">{{ punch.employee_id }}</td>
-                <td class="td-name">{{ punch.name }}</td>
-                <td class="td-time">{{ formatTimestamp(punch.punched_at) }}</td>
+                <td class="col-num cell-muted">{{ $index + 1 }}</td>
+                <td class="col-id"><code class="mono-id">{{ punch.employee_id }}</code></td>
+                <td class="col-name cell-name">{{ punch.name }}</td>
+                <td class="col-time cell-time">{{ formatTimestamp(punch.punched_at) }}</td>
               </tr>
             }
           </tbody>
         </table>
       </div>
+
     </div>
   }
 
